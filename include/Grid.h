@@ -35,6 +35,12 @@ class Grid
         */
         GridData exportScene() const;
 
+        /**
+        *   Builds the Grid setup from scene
+        */
+        void buildGrid();
+
+
         virtual ~Grid();
 
         /**

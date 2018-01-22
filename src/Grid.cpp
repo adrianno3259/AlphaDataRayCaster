@@ -3,8 +3,8 @@
 
 Grid::Grid()
 {
-    gridVoxels.push_back(std::vector<Triangle*>());
-    gridVoxels.push_back(std::vector<Triangle*>());
+    //gridVoxels.push_back(std::vector<Triangle*>());
+    //gridVoxels.push_back(std::vector<Triangle*>());
 }
 
 /**
@@ -130,6 +130,23 @@ GridData Grid::exportScene() const
     return ret;
 }
 
+void Grid::buildGrid()
+{
+
+    gridVoxels.push_back(std::vector<Triangle*>());
+    int nMeshes = scene->sceneSize();
+    //const std::vector<Mesh*> sc = scene->getMeshes();
+
+    for(int m = 0; m < nMeshes; m++)
+    {
+        Mesh* mesh = scene->getMesh(m);
+        int nTris = mesh->triangles.size();
+        for(int tri = 0; tri < nTris; tri++)
+        {
+            gridVoxels[0].push_back(mesh->triangles[tri]);
+        }
+    }
+}
 
 Grid::~Grid()
 {

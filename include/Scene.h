@@ -34,6 +34,16 @@ class Scene
         */
         void addObject(Mesh* obj);
 
+        /**
+        *   Gets a pointer to the mesh at index "index"
+        */
+        Mesh* getMesh(int index) const;
+
+        /**
+        *   Gets the number of meshes in the scene
+        */
+        int sceneSize() const;
+
     protected:
         /// Objects in the scene
         std::vector<Mesh*> objects;
