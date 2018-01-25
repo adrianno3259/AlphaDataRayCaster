@@ -50,3 +50,8 @@ void Triangle::printData() const
     printVec(p3);
     printVec(normal);
 }
+
+bool Triangle::hit(const Ray& ray, float& t) const
+{
+
+}

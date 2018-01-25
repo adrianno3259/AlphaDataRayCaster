@@ -3,6 +3,7 @@
 
 #include "Vec3d.h"
 #include "../Globals.h"
+#include "Ray.h"
 
 /**
 *   class Triangle
@@ -11,6 +12,10 @@
 class Triangle
 {
     public:
+        /// id of the mesh the triangle is in.
+        /// easier to find the correct material
+        int meshId;
+
         /// Triangle vertices
         Vec3d p1, p2, p3;
 
@@ -54,6 +59,12 @@ class Triangle
         *   Vertices, Normal and Id
         */
         void printData() const;
+
+        /**
+        *   Checks if Ray hits the triangle triangle in
+        *   a positive t value. Otherwise returns -1
+        */
+        bool hit(const Ray& ray, float& t) const;
 
         /**
         *   Triangle Destructor

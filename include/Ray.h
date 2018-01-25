@@ -2,6 +2,8 @@
 #define RAY_H
 
 #include "Vec3d.h"
+
+
 /**
 *   Mathematical representation of a light ray with
 *   an origin point and a direction vector
@@ -27,6 +29,7 @@ class Ray
         */
         Vec3d rayPoint(double t) const;
 
+        static const int NUM_ATTRIBUTES = 6;
 };
 
 #endif // RAY_H

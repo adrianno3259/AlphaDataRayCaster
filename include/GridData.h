@@ -1,7 +1,9 @@
 #ifndef GRIDDATA_H
 #define GRIDDATA_H
 
-
+/**
+*   Exported triangle data from the class Grid
+*/
 class GridData{
 public:
     /// Id information in order of voxel number and

@@ -7,8 +7,3 @@ Vec3d Ray::rayPoint(double t) const
 {
     return origin + t * direction;
 }
-
-Ray::~Ray()
-{
-    //dtor
-}
