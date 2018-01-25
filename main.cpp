@@ -28,13 +28,18 @@ int main(){
     init();
 
     Vec3d eye(-100,0,0), lkp(0,0,0), up(0,1,0);
-    double dist = 50, psize=0.5;
-    int vres = 1, hres = 1;
+    double dist = 50, psize=1;
+    int vres = 2, hres = 2;
     Camera cam = Camera(eye, lkp, up, dist, psize, vres, hres);
     Ray r = cam.getRay(0,0);
     printVec(r.origin);
     printVec(r.direction);
 
+    CameraData cd = cam.exportRays();
+
+    for(int i = 0; i < cd.rayDataSize*Ray::NUM_ATTRIBUTES; i++)
+        cout<<cd.rayData[i]<<" ";
+    cout<<endl;
 
     /*
     Mesh m("3d_models/teddy.obj");

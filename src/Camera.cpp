@@ -31,8 +31,10 @@ Ray Camera::getRay(int r, int c) const
     double xv = psize*(c - hres/2),
            yv = psize*(r - vres/2);
 
-    Vec3d d = xv*u + yv*w - dist*w;
+    Vec3d d = xv*u + yv*v - dist*w;
+    printVec(d);
     d.normalize();
+    printVec(d);
     Ray ray = Ray(eye, d);
     return ray;
 }
@@ -45,17 +47,14 @@ CameraData Camera::exportRays() const
     {
         for(int c = 0; c < hres; c++)
         {
-                double xv = psize*(c - hres/2),
-                yv = psize*(r - vres/2);
-                Vec3d d = xv*u + yv*w - d*w;
-                d.normalize();
-
-                rayData[(r*hres + c)]   = eye.x;
-                rayData[(r*hres + c)+1] = eye.y;
-                rayData[(r*hres + c)+2] = eye.z;
-                rayData[(r*hres + c)+3] = d.x;
-                rayData[(r*hres + c)+4] = d.y;
-                rayData[(r*hres + c)+5] = d.z;
+                Ray ray = getRay(r, c);
+                std::cerr<<r<<" "<< c<<" "<< (r*hres + c)*Ray::NUM_ATTRIBUTES<<std::endl;
+                rayData[(r*hres + c)*Ray::NUM_ATTRIBUTES]   = ray.origin.x;
+                rayData[(r*hres + c)*Ray::NUM_ATTRIBUTES+1] = ray.origin.y;
+                rayData[(r*hres + c)*Ray::NUM_ATTRIBUTES+2] = ray.origin.z;
+                rayData[(r*hres + c)*Ray::NUM_ATTRIBUTES+3] = ray.direction.x;
+                rayData[(r*hres + c)*Ray::NUM_ATTRIBUTES+4] = ray.direction.y;
+                rayData[(r*hres + c)*Ray::NUM_ATTRIBUTES+5] = ray.direction.z;
         }
     }
     CameraData cd = CameraData(rayData, nRays);
