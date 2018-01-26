@@ -27,19 +27,51 @@ int main(){
 
     init();
 
-    Vec3d eye(-100,0,0), lkp(0,0,0), up(0,1,0);
+    Vec3d eye(0, -100, 0), lkp(0, 0, 0), up(0,0,1);
     double dist = 50, psize=1;
-    int vres = 2, hres = 2;
+    int vres = 400, hres = 400;
     Camera cam = Camera(eye, lkp, up, dist, psize, vres, hres);
     Ray r = cam.getRay(0,0);
     printVec(r.origin);
     printVec(r.direction);
 
-    CameraData cd = cam.exportRays();
 
-    for(int i = 0; i < cd.rayDataSize*Ray::NUM_ATTRIBUTES; i++)
-        cout<<cd.rayData[i]<<" ";
-    cout<<endl;
+
+    //CameraData cd = cam.exportRays();
+    //Triangle t = Triangle();
+    //float tmin;
+    //bool h = t.hit(r, tmin);
+    //cout<<"hit? "<<h<<" t = "<<tmin<<endl;
+
+    //for(int i = 0; i < cd.rayDataSize*Ray::NUM_ATTRIBUTES; i++)
+    //    cout<<cd.rayData[i]<<" ";
+    //cout<<endl;
+
+    //cd.freeAll();
+
+    Mesh m("3d_models/teddy.obj");
+
+    for(int r = 0; r < vres; r++)
+    for(int c = 0; c < hres; c++)
+    {
+        Ray ray = cam.getRay(r, c);
+        float tMin = 10000000.0;
+        int idMin = -1;
+        //cout<<m.triangles.size();
+        for(int i = 0; i < m.triangles.size(); i++)
+        {
+            float t;
+            bool hit = m.triangles[i]->hit(ray, t);
+            //if(hit) cout<<"t = "<<t<<endl;
+            if(hit && t < tMin)
+            {
+                idMin = m.triangles[i]->getId();
+                tMin = t;
+
+            }
+        }
+    }
+
 
     /*
     Mesh m("3d_models/teddy.obj");

@@ -10,3 +10,4 @@ CameraData::CameraData(float* rays, int nRays)
 void CameraData::freeAll(){
     free(this->rayData);
 }
+
