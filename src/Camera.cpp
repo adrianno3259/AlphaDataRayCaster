@@ -41,7 +41,7 @@ Ray Camera::getRay(int r, int c) const
 CameraData Camera::exportRays() const
 {
     int nRays = vres*hres;
-    float* rayData = (float*) malloc(nRays*Ray::NUM_ATTRIBUTES*sizeof(float));
+    double* rayData = (double*) malloc(nRays*Ray::NUM_ATTRIBUTES*sizeof(double));
 
         printVec(u);
     printVec(v);

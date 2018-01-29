@@ -62,7 +62,7 @@ GridData Grid::exportScene() const
     int numVoxels = this->gridVoxels.size();
     int numTriangles = 0;
     int *vCount, *idData;
-    float *tData;
+    double *tData;
 
     /// Allocating the
     vCount = (int*) malloc(sizeof(int)*numVoxels);
@@ -73,10 +73,10 @@ GridData Grid::exportScene() const
         vCount[i] = numTriangles;
 
     /// Allocating space for every attribute of every Triangle in every Voxel w/ repetition
-    tData  = (float*) malloc(sizeof(float)*numTriangles*Triangle::NUM_ATTRIBUTES);
+    tData  = (double*) malloc(sizeof(double)*numTriangles*Triangle::NUM_ATTRIBUTES);
 
     /// Allocating space for every id of every Triangle in every Voxel w/ repetition
-    idData = (int*) malloc(sizeof(float)*numTriangles);
+    idData = (int*) malloc(sizeof(int)*numTriangles);
 
 
     /// For every Voxel in the Grid

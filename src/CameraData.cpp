@@ -1,7 +1,7 @@
 #include "CameraData.h"
 #include <cstdlib>
 
-CameraData::CameraData(float* rays, int nRays)
+CameraData::CameraData(double* rays, int nRays)
 {
     this->rayData = rays;
     this->rayDataSize = nRays;

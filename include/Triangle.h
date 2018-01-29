@@ -64,7 +64,7 @@ class Triangle
         *   Checks if Ray hits the triangle triangle in
         *   a positive t value. Otherwise returns -1
         */
-        bool hit(const Ray& ray, float& t) const;
+        bool hit(const Ray& ray, double& t) const;
 
         /**
         *   Triangle Destructor

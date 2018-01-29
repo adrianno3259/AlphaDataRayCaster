@@ -1,6 +1,10 @@
 #include "../include/Mesh.h"
 #include <fstream>
 
+
+Mesh::Mesh(){}
+
+
 Mesh::Mesh(std::string filename){
 
     // object file stream

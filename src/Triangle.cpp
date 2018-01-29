@@ -52,7 +52,7 @@ void Triangle::printData() const
     printVec(normal);
 }
 
-bool Triangle::hit(const Ray& ray, float& t) const
+bool Triangle::hit(const Ray& ray, double& t) const
 {
     bool hit = false;
 

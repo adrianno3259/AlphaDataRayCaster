@@ -6,7 +6,7 @@ class CameraData
 {
 public:
     /// ray information
-    float *rayData;
+    double *rayData;
 
     /// Size of rayData Array
     int rayDataSize;
@@ -15,7 +15,7 @@ public:
     *   Constructor
     *   Sets the pointer to allocated ray info
     */
-    CameraData(float*, int);
+    CameraData(double*, int);
 
     /**
     *   Free array pointer

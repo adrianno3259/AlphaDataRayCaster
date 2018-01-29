@@ -2,7 +2,7 @@
 #include <iostream>
 #include <cstdlib>
 
-GridData::GridData(int* ids, int* cumulativeSizes, float* triangles)
+GridData::GridData(int* ids, int* cumulativeSizes, double* triangles)
 {
     this->IdData = ids;
     this->vCount = cumulativeSizes;

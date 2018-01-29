@@ -14,7 +14,7 @@ public:
     int *vCount;
 
     /// triangle information
-    float *triData;
+    double *triData;
 
     /// Size of IdData Array
     int idDataSize;
@@ -30,7 +30,7 @@ public:
     *   Sets the pointer to allocated id info and
     *   triangle info
     */
-    GridData(int*, int*, float*);
+    GridData(int*, int*, double*);
 
     /**
     *   Free all array pointers
