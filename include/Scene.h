@@ -1,8 +1,9 @@
 #ifndef SCENE_H
 #define SCENE_H
 
-#include <vector>
 #include "Mesh.h"
+#include <vector>
+#include <memory>
 
 /**
 *   class Scene
@@ -26,18 +27,18 @@ class Scene
         *   Gets a reference to a vector containing
         *   all objects in the scene
         */
-        const std::vector<Mesh*>& getMeshes() const;
+        const std::vector<std::shared_ptr<Mesh> >& getMeshes() const;
 
         /**
         *   Adds a new object obj to the
         *   existing scene
         */
-        void addObject(Mesh* obj);
+        void addObject(std::shared_ptr<Mesh> obj);
 
         /**
-        *   Gets a pointer to the mesh at index "index"
+        *   Gets a smart pointer to the mesh at index "index"
         */
-        Mesh* getMesh(int index) const;
+        std::shared_ptr<Mesh> getMesh(int index) const;
 
         /**
         *   Gets the number of meshes in the scene
@@ -46,7 +47,7 @@ class Scene
 
     protected:
         /// Objects in the scene
-        std::vector<Mesh*> objects;
+        std::vector<std::shared_ptr<Mesh> > objects;
     private:
 };
 

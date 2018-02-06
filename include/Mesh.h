@@ -5,7 +5,7 @@
 #include <string>
 
 #include "Triangle.h"
-
+#include <memory>
 
 /**
 *   class Mesh
@@ -15,7 +15,7 @@ class Mesh
 {
     public:
         /// Vector with all the triangles of the mesh
-        std::vector<Triangle*> triangles;
+        std::vector<std::shared_ptr<Triangle> > triangles;
 
         /**
         *   File constructor
@@ -32,7 +32,7 @@ class Mesh
         /**
         *   Adds a triangle to the mesh
         */
-        void addTriangle(Triangle* tri);
+        void addTriangle(std::shared_ptr<Triangle> tri);
 
         /**
         *   Blank destructor

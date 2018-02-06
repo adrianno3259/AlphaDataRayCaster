@@ -11,7 +11,7 @@ Grid::Grid()
 *   Initializing a Grid with a full scene from
 *   a given pointer to that scene
 */
-Grid::Grid(Scene* scene)
+Grid::Grid(std::shared_ptr<Scene> scene)
 {
     this->scene = scene;
 }
@@ -19,7 +19,7 @@ Grid::Grid(Scene* scene)
 /**
 *   Sets the scene of the Grid afterwards
 */
-void Grid::setScene(Scene* scene)
+void Grid::setScene(std::shared_ptr<Scene> scene)
 {
     this->scene = scene;
 }
@@ -133,13 +133,13 @@ GridData Grid::exportScene() const
 void Grid::buildGrid()
 {
 
-    gridVoxels.push_back(std::vector<Triangle*>());
+    gridVoxels.push_back(std::vector<std::shared_ptr<Triangle> >());
     int nMeshes = scene->sceneSize();
     //const std::vector<Mesh*> sc = scene->getMeshes();
 
     for(int m = 0; m < nMeshes; m++)
     {
-        Mesh* mesh = scene->getMesh(m);
+        std::shared_ptr<Mesh> mesh = scene->getMesh(m);
         int nTris = mesh->triangles.size();
         for(int tri = 0; tri < nTris; tri++)
         {

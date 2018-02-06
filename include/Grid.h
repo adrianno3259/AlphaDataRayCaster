@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <utility>
+#include <memory>
 
 #include "Scene.h"
 #include "GridData.h"
@@ -22,12 +23,12 @@ class Grid
         *   Scene constructor
         *   Initializes a Grid with a full scene
         */
-        Grid(Scene* scene);
+        Grid(std::shared_ptr<Scene> scene);
 
         /**
         *   Sets the scene of the Grid afterwards
         */
-        void setScene(Scene* scene);
+        void setScene(std::shared_ptr<Scene> scene);
 
         /**
         *   Export the built Grid for processing
@@ -48,12 +49,12 @@ class Grid
         *   The first index is a Voxel and the second is all the
         *   Triangles that belongs to it
         */
-        std::vector<std::vector<Triangle*> > gridVoxels;
+        std::vector<std::vector<std::shared_ptr<Triangle> > > gridVoxels;
     protected:
 
 
         /// Scene from which the Grid will be built
-        Scene* scene;
+        std::shared_ptr<Scene> scene;
 };
 
 

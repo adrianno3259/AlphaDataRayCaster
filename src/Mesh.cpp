@@ -39,7 +39,7 @@ Mesh::Mesh(std::string filename){
                 int a, b, c, e, f, g, h, i;
                 //sscanf(line+1, "%d/%d/%d %d/%d/%d %d/%d/%d\n", &a,&g,&h,&b,&e,&f,&c,&h,&i);
                 sscanf(line+1, "%d %d %d\n", &a,&b,&c);
-                this->triangles.push_back(new Triangle(v[a-1], v[b-1], v[c-1]));
+                this->triangles.push_back(std::make_shared<Triangle>(v[a-1], v[b-1], v[c-1]));
 
         }
     }
@@ -49,7 +49,7 @@ Mesh::Mesh(std::string filename){
     sourceFile.close();
 }
 
-void Mesh::addTriangle(Triangle* tri)
+void Mesh::addTriangle(std::shared_ptr<Triangle> tri)
 {
     this->triangles.push_back(tri);
 }
