@@ -127,18 +127,19 @@ void intersectFPGA(
 
 
 int main(){
-
+    cout<<"testeeeeeeEEEE"<<'\n';
 
     Vec3d eye(0, -100, 0), lkp(0, 0, 0), up(0,0,1);
     double dist = 50, psize=1;
-    int vres = 1, hres = 1;
+    int vres = 500, hres = 500;
     Camera cam = Camera(eye, lkp, up, dist, psize, vres, hres);
     Ray r = cam.getRay(0,0);
     printVec(r.origin);
     printVec(r.direction);
 
-    /*
+
     Mesh m("3d_models/teddy.obj");
+    cout<<m.triangles.size()<<"\n";
 
     for(int r = 0; r < vres; r++)
     for(int c = 0; c < hres; c++)
@@ -159,8 +160,8 @@ int main(){
 
             }
         }
-    }*/
-
+    }
+    /*
     Mesh m = Mesh();
     Triangle tri = Triangle();
     m.addTriangle(&tri);
@@ -202,7 +203,7 @@ int main(){
     free(outTData);
     free(idsData);
     cd.freeAll();
-    gd.freeAll();
+    gd.freeAll();*/
 
     return 0;
 }
