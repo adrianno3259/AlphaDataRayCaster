@@ -1,2 +1,0 @@
-main.o: main.cpp include/Vec3d.h include/Mesh.h include/Triangle.h \
- include/Vec3d.h include/../Globals.h include/Triangle.h
