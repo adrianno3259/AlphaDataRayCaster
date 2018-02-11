@@ -7,7 +7,7 @@
 
 /**
     TriangleBase: Database for quick access of Triangles only by an ID value
-        - Useful for searches
+        - Useful for material searches
         - Other objects that contains triangles will store a pointer
 */
 class TriangleBase
@@ -32,6 +32,7 @@ class TriangleBase
         *   Gets a triangle from the id number
         */
         std::shared_ptr<Triangle> getTriangle(int id) const;
+
 
     protected:
         std::vector<std::shared_ptr<Triangle> > triangles;

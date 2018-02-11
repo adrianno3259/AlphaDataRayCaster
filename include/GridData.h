@@ -1,6 +1,8 @@
 #ifndef GRIDDATA_H
 #define GRIDDATA_H
 
+#include <array>
+
 /**
 *   Exported triangle data from the class Grid
 */

@@ -78,7 +78,6 @@ GridData Grid::exportScene() const
     /// Allocating space for every id of every Triangle in every Voxel w/ repetition
     idData = (int*) malloc(sizeof(int)*numTriangles);
 
-
     /// For every Voxel in the Grid
     for(int vox = 0; vox < numVoxels; vox++)
     {

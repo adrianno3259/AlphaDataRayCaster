@@ -13,6 +13,8 @@
 #include "include/Camera.h"
 #include "include/CameraData.h"
 
+#include "include/TriangleBase.h"
+
 #define PV(A) cout<<#A<<" = "<<A<endl
 #define FOR(I,N) for(int I = 0; I < N; I++)
 
@@ -127,19 +129,14 @@ void intersectFPGA(
 
 
 int main(){
-    cout<<"testeeeeeeEEEE"<<'\n';
 
     Vec3d eye(0, -100, 0), lkp(0, 0, 0), up(0,0,1);
     double dist = 50, psize=1;
-    int vres = 500, hres = 500;
+    int vres = 100, hres = 100;
     Camera cam = Camera(eye, lkp, up, dist, psize, vres, hres);
-    Ray r = cam.getRay(0,0);
-    printVec(r.origin);
-    printVec(r.direction);
 
-
-    Mesh m("3d_models/teddy.obj");
-    cout<<m.triangles.size()<<"\n";
+    shared_ptr<Mesh> m = make_shared<Mesh>("3d_models/teddy.obj");
+    cout<<m->triangles.size()<<"\n";
 
     for(int r = 0; r < vres; r++)
     for(int c = 0; c < hres; c++)
@@ -148,37 +145,32 @@ int main(){
         double tMin = 10000000.0;
         int idMin = -1;
         //cout<<m.triangles.size();
-        for(int i = 0; i < m.triangles.size(); i++)
+        for(int i = 0; i < m->triangles.size(); i++)
         {
             double t;
-            bool hit = m.triangles[i]->hit(ray, t);
+            bool hit = m->triangles[i]->hit(ray, t);
             //if(hit) cout<<"t = "<<t<<endl;
             if(hit && t < tMin)
             {
-                idMin = m.triangles[i]->getId();
+                cout<<idMin<<" "<<t<<"\n";
+                idMin = m->triangles[i]->getId();
                 tMin = t;
 
             }
         }
     }
-    /*
-    Mesh m = Mesh();
-    Triangle tri = Triangle();
-    m.addTriangle(&tri);
 
-    Scene s = Scene();
-    s.addObject(&m);
+    std::shared_ptr<Scene> s = std::make_shared<Scene>();
+    s->addObject(m);
 
-    const vector<Mesh*> meshes = s.getMeshes();
+    const std::vector<std::shared_ptr<Mesh> > meshes = s->getMeshes();
     cout<<"scene time! :)\n";
     for(int i = 0; i < 1; i++)
     {
         meshes[0]->triangles[i]->printData();
     }
 
-    printVec(r.origin); printVec(r.direction);
-
-    Grid g1 = Grid(&s);
+    Grid g1 = Grid(s);
 
     g1.buildGrid();
 
@@ -188,22 +180,20 @@ int main(){
     double *outTData  = (double*) malloc(sizeof(double)*hres*vres);
     int *idsData = (int*) malloc(sizeof(int)*hres*vres);
 
-
-
     intersectFPGA(gd.idDataSize, gd.triData, gd.IdData,
                   vres*hres, cd.rayData,idsData, outTData);
 
 
     FOR(i,hres*vres) cout<<outTData[i]<< " "; cout<<endl;
     FOR(i,hres*vres) cout<<idsData[i]<< " "; cout<<endl;
-    double teste;
-    cout<<g1.gridVoxels[0][0]->hit(r, teste)<<endl;
-    cout<<teste<<endl;
+    //double teste;
+    //cout<<g1.gridVoxels[0][0]->hit(r, teste)<<endl;
+    //cout<<teste<<endl;
 
     free(outTData);
     free(idsData);
     cd.freeAll();
-    gd.freeAll();*/
+    gd.freeAll();
 
     return 0;
 }

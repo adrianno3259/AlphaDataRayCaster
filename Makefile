@@ -29,6 +29,8 @@ DEPS=$(patsubst %.cpp, %.d, $(SOURCES))
 run: $(EXEC) clean_intermediate
 	./$(EXEC)
 
+target : $(EXEC)
+
 $(EXEC) : $(OBJS)
 	$(LINKER) $^ -o $@
 
