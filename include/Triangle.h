@@ -12,9 +12,6 @@
 class Triangle
 {
     public:
-        /// id of the mesh the triangle is in.
-        /// easier to find the correct material
-        int meshId;
 
         /// Triangle vertices
         Vec3d p1, p2, p3;
@@ -35,19 +32,24 @@ class Triangle
         *   Initializes a triangle in pt1, pt2 and pt3
         *   With auto-calculated normal vector
         */
-        Triangle(Vec3d pt1, Vec3d pt2, Vec3d pt3);
+        Triangle(Vec3d pt1, Vec3d pt2, Vec3d pt3, int relativeId);
 
         /**
         *   Blank constructor
         *   Initializes a triangle in pt1, pt2 and pt3
         *   Normal vector equals to normal
         */
-        Triangle(Vec3d pt1, Vec3d pt2, Vec3d pt3, Vec3d normal);
+        Triangle(Vec3d pt1, Vec3d pt2, Vec3d pt3, Vec3d normal, int relativeId);
 
         /**
-        *   Get triangle id
+        *   Get triangle id relative to mesh
         */
         int getId() const;
+
+        /**
+        *   Get the id of the mesh that the triangle belongs to
+        */
+        int getMeshId() const;
 
         /**
         *   Set triangle id
@@ -78,10 +80,14 @@ class Triangle
         /// Number of attributes to be stored and sent
         /// to the FPGA
         static const int NUM_ATTRIBUTES = 12;
+
     protected:
         /// Triangle id
         int id;
 
+        /// id of the mesh the triangle is in.
+        /// easier to find the correct material
+        int meshId;
     private:
 
 };

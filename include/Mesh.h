@@ -38,7 +38,14 @@ class Mesh
         *   Blank destructor
         */
         virtual ~Mesh();
+
+        /// Return the mesh id
+        int getId() const;
+
+        static int MESH_NEXT_ID;
+
     protected:
+        int id;
     private:
 };
 
