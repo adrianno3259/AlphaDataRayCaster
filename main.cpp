@@ -20,6 +20,8 @@
 
 #include <algorithm>
 #include <random>
+
+#include "Light.h"
 //#include "include/TriangleBase.h"
 
 #define PV(A) cout<<#A<<" = "<<A<endl
@@ -46,6 +48,7 @@ int main(){
 
     shared_ptr<Image> im = make_shared<Image>(vres, hres);
 
+    shared_ptr<Light> light = make_shared<Light>(1.0, Color(1.0), Vec3d(10.0, 10.0, 10.0));
 
     for(int r = 0; r < vres; r++)
     for(int c = 0; c < hres; c++)
