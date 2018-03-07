@@ -19,6 +19,10 @@ const std::vector<std::shared_ptr<Mesh> >& Scene::getMeshes() const
     return this->objects;
 }
 
+void Scene::importObject(const std::string& filename){
+    this->addObject(std::make_shared<Mesh>(filename));
+}
+
 void Scene::addObject(std::shared_ptr<Mesh> obj)
 {
     this->objects.push_back(obj);

@@ -36,6 +36,11 @@ class Scene
         void addObject(std::shared_ptr<Mesh> obj);
 
         /**
+        *   Reads mesh from file
+        */
+        void importObject(const std::string& filename);
+
+        /**
         *   Gets a smart pointer to the mesh at index "index"
         */
         std::shared_ptr<Mesh> getMesh(int index) const;
