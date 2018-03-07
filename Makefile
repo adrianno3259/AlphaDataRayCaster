@@ -2,7 +2,7 @@
 EXEC=raytracer
 
 #compiler
-CC=g++ -std=c++11
+CC=g++ -std=c++11 
 
 #linker
 LINKER=g++
