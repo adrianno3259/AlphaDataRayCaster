@@ -15,7 +15,8 @@
 #include "include/Camera.h"
 #include "include/CameraData.h"
 
-
+#include "Intersection.h"
+#include "Material.h"
 #include "Image.h"
 
 #include <algorithm>
@@ -37,9 +38,9 @@ using namespace std;
 
 int main(){
 
-    Vec3d eye(0, -30, 0), lkp(0, 0, 0), up(0,0,1);
-    double dist = 50, psize=1;
-    int vres = 500, hres = 500;
+    Vec3d eye(50, 50, 0), lkp(0, 0, 0), up(0,0,1);
+    double dist = 100, psize=1;
+    int vres = 300, hres = 300;
     Camera cam = Camera(eye, lkp, up, dist, psize, vres, hres);
 
 
@@ -49,6 +50,9 @@ int main(){
     shared_ptr<Image> im = make_shared<Image>(vres, hres);
 
     shared_ptr<Light> light = make_shared<Light>(1.0, Color(1.0), Vec3d(10.0, 10.0, 10.0));
+    vector<shared_ptr<Light> > lights; lights.push_back(light);
+
+    shared_ptr<Material> mat = make_shared<Material>(1.0, Color(1.0, 0.0, 0.0));
 
     for(int r = 0; r < vres; r++)
     for(int c = 0; c < hres; c++)
@@ -57,20 +61,34 @@ int main(){
         Ray ray = cam.getRay(r, c);
         double tMin = 10000000.0;
         int idMin = -1;
-        //cout<<m.triangles.size();
+        int inMeshId = -1;
+        bool hit;
+
         for(int i = 0; i < m->triangles.size(); i++)
         {
             double t;
-            bool hit = m->triangles[i]->hit(ray, t);
-            //if(hit) cout<<"t = "<<t<<endl;
+            hit = m->triangles[i]->hit(ray, t);
             if(hit && t < tMin)
             {
-                //cout<<idMin<<" "<<t<<"\n";
+                inMeshId = i;
                 idMin = m->triangles[i]->getId();
                 tMin = t;
-                L = Color(1.0);
             }
         }
+        /*
+        Intersect it = Intersect(hit,
+                                 tMin,
+                                 m->triangles[inMeshId],
+                                 true,
+                                 ray.rayPoint(tMin),
+                                 m->triangles[inMeshId]->normal,
+                                 mat);
+
+
+        if(inMeshId != -1)
+            L = mat->shade(it, lights);
+        else*/
+            L = Color(1.0);
         im->setPixel(r, c, L);
 
     }
