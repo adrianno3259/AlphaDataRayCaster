@@ -15,13 +15,13 @@
 #include "include/Camera.h"
 #include "include/CameraData.h"
 
-#include "Intersection.h"
 #include "Material.h"
 #include "Image.h"
 
 #include <algorithm>
 #include <random>
-
+#include "Globals.h"
+//#include "Intersection.h"
 #include "Light.h"
 //#include "include/TriangleBase.h"
 
@@ -31,6 +31,39 @@
 /// initializing the triangle instance counter
 //int Triangle::TRIANGLE_NEXT_ID = 0;
 int Mesh::MESH_NEXT_ID = 0;
+
+
+typedef struct Intersection
+{
+public:
+
+    Intersection(Ray ray,
+                const bool ht,
+              const float tnum,
+              std::shared_ptr<Triangle> o,
+              const bool ent,
+              const Vec3d& htp,
+              const Vec3d& norm,
+              std::shared_ptr<Material> mat)
+    :   hit(ht),
+        t(tnum),
+        obj(o),
+        entering(ent),
+        hitPoint(htp),
+        normal(norm),
+        m(mat),
+        r(ray) {}
+
+    Ray r;
+    bool hit;
+    float t; // ponto paramétrico t no raio que atingiu o objeto
+    std::shared_ptr<Triangle> obj; // objeto atingido
+    bool entering; // se o raio da interseção está entrando ou não no objeto
+    int depth;
+    Vec3d hitPoint;
+    Vec3d normal;
+    std::shared_ptr<Material> m;
+} Intersection;
 
 using namespace std;
 
@@ -75,8 +108,25 @@ int main(){
                 tMin = t;
             }
         }
+
+        Color endColor = Color();
+        Vec3d wo = -ray.direction;
+        int numberOfLights = lights.size();
+
+        for(int l = 0; l < numberOfLights; l++)
+        {
+            Vec3d wi = lights[l]->getDirection(ray.rayPoint(tMin));
+            double dot = m->triangles[inMeshId]->normal * wi;
+
+            if(dot > 0.0)
+            {
+                endColor += (mat->mDiffuseCoef * mat->mColor * INV_PI) * lights[l]->getL() * dot;
+            }
+        }
+
         /*
-        Intersect it = Intersect(hit,
+        Intersection it = Intersection(ray,
+                                 hit,
                                  tMin,
                                  m->triangles[inMeshId],
                                  true,
@@ -88,7 +138,7 @@ int main(){
         if(inMeshId != -1)
             L = mat->shade(it, lights);
         else*/
-            L = Color(1.0);
+            L = endColor;//Color(1.0);
         im->setPixel(r, c, L);
 
     }

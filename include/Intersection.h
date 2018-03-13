@@ -11,7 +11,7 @@
 
 #define printInters(A) std::cout <<"Intersection "<< #A <<":"<<std::endl; printVar(A.hit); printVar(A.t); printVec(A.hitPoint); printVar(A.entering); printCol(A.c)
 
-
+/*
 typedef struct Intersection
 {
 public:
@@ -41,5 +41,5 @@ public:
     Vec3d normal;
     std::shared_ptr<Material> m;
 } Intersection;
-
+*/
 #endif // INTERSECTION_H

@@ -8,23 +8,23 @@
 #include "Light.h"
 #include <vector>
 #include <memory>
-#include "BRDF.h"
 
 class Intersection;
 
 class Material
 {
     public:
-        Material(float diffuseCoef, const Color& color);
+        Material(float diffuseCoef, Color color);
 
         virtual ~Material();
 
         Color shade(Intersection& it,
                     const std::vector<std::shared_ptr<Light> >& lights) const;
 
-
+        double mDiffuseCoef;
+        Color  mColor;
     protected:
-        BRDF lambertian;
+
     private:
 
 };

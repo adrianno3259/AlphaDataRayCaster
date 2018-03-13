@@ -1,8 +1,8 @@
 #include "BRDF.h"
 #include "Intersection.h"
 #include "../Globals.h"
-
-BRDF::BRDF(float diffuseCoef, const Color& color):
+/*
+BRDF::BRDF(float diffuseCoef, Color color):
     mDiffuseCoef(diffuseCoef), mColor(color)
 {
     //ctor
@@ -10,7 +10,13 @@ BRDF::BRDF(float diffuseCoef, const Color& color):
 
 Color BRDF::f(const Vec3d& wo,
               const Vec3d& wi,
-              const Intersect& it) const
+              Intersect& it) const
+{
+    return mColor * mDiffuseCoef * INV_PI;
+}
+
+Color BRDF::f(const Vec3d& wo,
+              const Vec3d& wi) const
 {
     return mColor * mDiffuseCoef * INV_PI;
 }
@@ -19,3 +25,4 @@ BRDF::~BRDF()
 {
     //dtor
 }
+*/
