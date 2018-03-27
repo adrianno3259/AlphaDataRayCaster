@@ -18,6 +18,7 @@ Triangle::Triangle(Vec3d pt1, Vec3d pt2, Vec3d pt3, int relativeId) :
     p1(pt1), p2(pt2), p3(pt3), id(relativeId)
 {
     normal = (p2 - p1) ^ (p3 - p1);
+    normal.normalize();
 }
 
 Triangle::Triangle(Vec3d pt1, Vec3d pt2, Vec3d pt3, Vec3d normal, int relativeId) :
@@ -34,6 +35,11 @@ int Triangle::getId() const
 void Triangle::setId(int id)
 {
     this->id = id;
+}
+
+void Triangle::setMeshId(int id)
+{
+    this->meshId = id;
 }
 
 void Triangle::printData() const

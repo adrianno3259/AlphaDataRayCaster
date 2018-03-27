@@ -29,7 +29,7 @@ Image::Image(const int wi, const int he) // imagem preta w x h
 
 Image::Image( std::vector< std::vector<Color> > pxs) : pixels(pxs) { w = pxs.size(); h = pxs[0].size(); } // imagem a partir de std::vector de cores
 
-Color Image::getPixel(const int x, const int y) { return pixels[x][y]; } // retorna a cor de um pixel específico
+Color Image::getPixel(const int x, const int y) { return pixels[y][x]; } // retorna a cor de um pixel específico
 
 void Image::setPixel(const int x, const int y, const Color& c) { pixels[x][y] = c; } //altera a cor de um pixel
 
@@ -48,13 +48,15 @@ void Image::save(const char* filepath)
     std::ofstream file;
 
     file.open(filepath, std::ios::binary);
-    file<<'P'<<'6'<<'\n'<<pixels.size()<<' '<<pixels[0].size()<<'\n'<<'2'<<'5'<<'5'<<'\n';
-    for(int i = 0; i < w; i++)
-        for(int j = 0; j < h; j++)
+    file << 'P' << '6' << '\n'
+         << w <<' '<< h <<'\n'
+         <<'2'<<'5'<<'5'<<'\n';
+    for(int i = 0; i < h; i++)
+        for(int j = 0; j < w; j++)
         {
-            file.put(255*pixels[i][j].r);
-            file.put(255*pixels[i][j].g);
-            file.put(255*pixels[i][j].b);
+            file.put(255*pixels[j][i].r);
+            file.put(255*pixels[j][i].g);
+            file.put(255*pixels[j][i].b);
         }
     file.close();
 }

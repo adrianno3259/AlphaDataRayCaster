@@ -18,6 +18,7 @@ Camera::Camera(const Vec3d& e,
     w = (e - l);
     w.normalize();
     u = upv ^ w;
+    u = -u;
     u.normalize();
     v = w ^ u;
 
@@ -29,7 +30,8 @@ Ray Camera::getRay(int r, int c) const
 {
     double xv = psize*(c - hres/2),
            yv = psize*(r - vres/2);
-
+    //std::cout<<psize<<" "<<xv <<" "<<yv<<"\n";
+    //std::cout<<r<<" "<<c<<" \n";
     Vec3d d = xv*u + yv*v - dist*w;
     //printVec(d);
     d.normalize();

@@ -52,6 +52,11 @@ class Triangle
         int getMeshId() const;
 
         /**
+        *   Set mesh id
+        */
+        void setMeshId(int id);
+
+        /**
         *   Set triangle id
         */
         void setId(int id);
