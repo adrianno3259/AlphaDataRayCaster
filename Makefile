@@ -18,7 +18,10 @@ INC_DIR = -I$(HEADER_DIR)
 
 CPP_FLAGS= 
 
-SOURCES = main.cpp $(wildcard $(SRC_DIR)/*.cpp)
+MAIN=main.cpp
+#MAIN=main_testbench_comparison.cpp
+
+SOURCES = $(MAIN) $(wildcard $(SRC_DIR)/*.cpp)
 
 OBJS= $(patsubst %.cpp, %.o, $(SOURCES))
 
