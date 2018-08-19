@@ -2,21 +2,21 @@
 EXEC=raytracer
 
 #compiler
-CC=g++ -std=c++11 
+CC=g++ -std=c++11
 
 #linker
 LINKER=g++
 
 # sources directory
 SRC_DIR=src
-# objec 
+# objec
 OBJS_DIR=obj
 HEADER_DIR=include
 DEP_DIR=deps
 
-INC_DIR = -I$(HEADER_DIR)
+INC_DIR = -I$(HEADER_DIR) -I/home/fpgadev/Documents/Adrianno/admpcieku3_sdk-2.0.0/host/api-v1_4_18b9/include
 
-CPP_FLAGS= 
+CPP_FLAGS=
 
 MAIN=main.cpp
 #MAIN=main_testbench_comparison.cpp
@@ -35,7 +35,7 @@ run: $(EXEC) clean_intermediate
 target : $(EXEC)
 
 $(EXEC) : $(OBJS)
-	$(LINKER) $^ -o $@
+	$(LINKER) $^ -o $@ -ladmxrc3
 
 %.o: %.cpp
 	$(CC) $(CPP_FLAGS) $(INC_DIR) -c $< -o $@
@@ -46,7 +46,7 @@ $(EXEC) : $(OBJS)
 clean_full: clean_intermediate
 	rm $(EXEC)
 
-clean_intermediate: 
+clean_intermediate:
 	rm $(OBJS) $(DEPS)
 
 -include $(DEPS)

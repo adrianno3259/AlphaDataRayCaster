@@ -26,6 +26,9 @@ class Camera
 
         virtual ~Camera();
 
+        int getVerticalResolution() const{ return vres;}
+        int getHorizontalResolution() const{ return hres;}
+
     protected:
         Vec3d u, v, w;
         Vec3d eye;
