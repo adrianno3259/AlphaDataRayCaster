@@ -1,32 +1,29 @@
 #include <iostream>
 #include <cstdlib>
 #include <cstdio>
-
 #include <utility>
 #include <ctime>
 #include <cmath>
-
+#include <algorithm>
+#include <random>
 #include <fstream>
 
 #include "include/Vec3d.h"
 #include "include/Mesh.h"
-
 #include "include/GridData.h"
 #include "include/Triangle.h"
 #include "include/Grid.h"
-
 #include "include/Camera.h"
 #include "include/CameraData.h"
-
 #include "include/Image.h"
-
-#include <algorithm>
-#include <random>
-
 #include "include/Light.h"
 //#include "include/TriangleBase.h"
 
-#include "admxrc3.h"
+#define FPGA
+
+#ifdef FPGA
+#   include "admxrc3.h"
+#endif
 
 #define PV(A) cout<<#A<<" = "<<A<endl
 #define FOR(I,N) for(int I = 0; I < N; I++)
@@ -112,7 +109,7 @@ void prepareTriangles(double *tData, int *idData, const std::shared_ptr<Mesh>& m
 
 
 
-class FPGA_Ray{
+class FPGA_Tracer{
 
 private:
 
@@ -129,10 +126,21 @@ private:
     const int FPGA_MAX_RAYS = 40000;
 
 
+    /** This array is used to receive the output data from the FPGA.
+    *   It stores the ids of the closest triangle to the ray of number
+    *   i = 0, ..., nRays
+    */
+    int *m_outputIds;
+
+    /** Used to receive the output data from the FPGA.
+    *   It stores the intersection parameter t of the closest triangle to the 
+    *   ray of number i = 0, ..., nRays. 
+    */
+    double *m_outputIntersects;
 
 public:
 
-    FPGA_Ray() :
+    FPGA_Tracer() :
         m_index(0),
         m_hCard(ADMXRC3_HANDLE_INVALID_VALUE)
     {
@@ -238,7 +246,7 @@ int main(int argc, char** argv){
     double hostIntersects[hres * vres];
     int hostIds[hres * vres];
 
-    #define FPGA
+    
     #ifndef FPGA
     int r, c;
     for(r = 0; r < vres; r++)
