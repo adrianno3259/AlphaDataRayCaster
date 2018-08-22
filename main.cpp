@@ -116,6 +116,7 @@ private:
     int m_numberOfRays;
     int m_numberOfTriangles;
 
+
     unsigned long m_index;
     ADMXRC3_STATUS m_status;
     ADMXRC3_HANDLE m_hCard;
