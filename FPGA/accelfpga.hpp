@@ -5,6 +5,7 @@
 #include <iostream>
 #include <map>
 #include <vector>
+#include <memory>
 
 namespace fpga
 {
@@ -15,8 +16,6 @@ namespace fpga
     *  fpga::ptr_t arrayBaseAddR = 0x00;
     */
     typedef uint64_t ptr_t;
-
-
 
     /** Struct to represent a chunk inside the FPGA DDR Memory.
     *   Used to manage
@@ -33,6 +32,7 @@ namespace fpga
 
     } _MemoryChunk;
 
+
     /** Class responsible for allocating and managing the FPGA
     *   DDR memory. This class is only used by the FPGA class
     *   as a helper t organize the data
@@ -44,14 +44,32 @@ namespace fpga
         std::vector<_MemoryChunk> m_memory;
     public:
         /// initializes an empty memory
-        MemoryManager();
+        MemoryManager(const long int mem_size);
         /// do nothing
         virtual ~MemoryManager();
 
-        /// Return the base address that could support the requested size
-        /// Throws exception if no chunk with required size is found
-        /// p.s.: remember to use std::vector::emplace and std::find_if
-        fpga::ptr_t malloc(long int _size);
+        /** Return the base address that could support the requested size
+        * 	Throws exception if no chunk with required size is found
+        * 	p.s.: remember to use std::vector::emplace and std::find_if
+        *
+        *   @param _size size of the memory chunk to be allocated
+        *   @return an FPGA pointer that indicates the allocated address
+        */
+        fpga::ptr_t alloc(long int _size);
+
+        /** Checks if an FPGA address is allocated to the user
+        *   and deallocates the memory chunk by setting the chunk
+        *   as 'free' in the class _MemoryChunk
+        *
+        *   @param _pointer FPGA pointer that indicates the allocated address
+        *   @return a boolean indicating if the free operation was successful
+        */
+        bool free(const fpga::ptr_t& _pointer);
+
+        void joinFreeChunks();
+
+        void isFree(const fpga::ptr_t& _addr) const;
+
     };
 
 
@@ -78,9 +96,15 @@ namespace fpga
         */
         // ADMXRC3_HANDLE hCard = ADMXRC3_HANDLE_INVALID_VALUE;
 
-        MemoryManager m_memory;
+        std::shared_ptr<fpga::MemoryManager> m_memory;
     public:
-        FPGA(){}
+        FPGA()
+        {
+            m_memory = std::make_shared<MemoryManager>(8e+9L);
+            std::cout << "Objeto criado" << std::endl;
+        }
+
+
         ~FPGA(){}
 
         /** Every accelerator input is either a value or a pointer to an array/variable.
