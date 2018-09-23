@@ -31,7 +31,7 @@ public:
     Color operator- (const Color& v) const; // subtração de cores
     Color operator* (const Color& b) const; // produto de cores
     Color operator/ (const Color& b) const;
-    Color clamp();
+    Color& clamp();
 };
 
 // ----- multiplicação com o escalar do lado esquerdo -------

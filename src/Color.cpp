@@ -1,5 +1,5 @@
-#include "Color.h"
 #include <algorithm>
+#include "Color.h"
 
 
 Color& Color::operator= (const Color& rhs){
@@ -11,7 +11,7 @@ Color& Color::operator= (const Color& rhs){
 
 
 
-Color Color::clamp()
+Color& Color::clamp()
 {
     float maxVal = std::max(r, std::max(g, b));
 
@@ -22,7 +22,7 @@ Color Color::clamp()
         b /= maxVal;
 
     }
-    return Color(r, g, b);
+    return *this;
 }
 
 

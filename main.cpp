@@ -8,18 +8,22 @@
 #include <random>
 #include <fstream>
 
-#include "include/Vec3d.h"
-#include "include/Mesh.h"
-#include "include/GridData.h"
-#include "include/Triangle.h"
-#include "include/Grid.h"
-#include "include/Camera.h"
-#include "include/CameraData.h"
-#include "include/Image.h"
-#include "include/Light.h"
-//#include "include/TriangleBase.h"
+#include <Vec3d.h>
+#include <Mesh.h>
+#include <GridData.h>
+#include <Triangle.h>
+#include <Grid.h>
+#include <Camera.h>
+#include <CameraData.h>
+#include <Image.h>
+#include <Light.h>
 
-#define FPGA
+#include <material/BRDF.h>
+#include <material/Material.h>
+
+#include <Constants.h>
+
+//#define FPGA
 
 #ifdef FPGA
 #   include "admxrc3.h"
@@ -28,7 +32,7 @@
 #define PV(A) cout<<#A<<" = "<<A<endl
 #define FOR(I,N) for(int I = 0; I < N; I++)
 
-#define INV_PI 0.318309886
+//#define INV_PI 0.318309886
 
 #define TRUE (0==0)
 #define FALSE (0==1)
@@ -61,11 +65,49 @@ using namespace std;
 #define forObj(mesh) cout<<"mesh id = "<<mesh->getId()<<"\n";for(int i = 0; i < 5; i++){mesh->triangles[i]->printData();}
 
 vector<shared_ptr<Mesh> > meshes;
-/*
-vector<shared_ptr<Light> >    lights;
-vector<shared_ptr<Material> > materials;
-*/
 
+
+
+void testBRDF()
+{
+    std::cout<< "------------- Testing the BRDFs -----------------\n";
+    /// Testing the Lambertian BRDF
+    auto lambertian = std::make_shared<brdf::Lambertian>(0.5, RED);
+
+    /// Incident direction (wi): direction the light came
+    Vec3d wi(0, 1, -1);
+    /// Leaving direction (wo): direction from which the ray came
+    Vec3d wo(0, 1, 1);
+
+    Intersection it;
+    /*
+    auto lres = lambertian->f(Vec3d(), wi, wo);
+
+    Color expected(0.5 * constants::INV_PI, 0, 0);
+
+    bool isEqual = true;
+
+    if(expected.r != lres.r)
+        isEqual = false;
+    else if(expected.g != lres.g)
+        isEqual = false;
+    else if(expected.b != lres.b)
+        isEqual = false;
+
+    if(isEqual)
+    {
+        std::cout << "No errors found!\n";
+    }
+    else
+    {
+        std::cout << "Expected values different from obtained!\n";
+        std::cout << "Expected:\n";
+        printCol(expected);
+        std::cout << "Obtained:\n";
+        printCol(lres);
+    }
+    std::cout<< "---------- Finish testing the BRDFs --------------\n";*/
+}
 
 void prepareRays(double* rData, const Camera& cam)
 {
@@ -107,7 +149,7 @@ void prepareTriangles(double *tData, int *idData, const std::shared_ptr<Mesh>& m
     }
 }
 
-
+#ifdef FPGA
 
 class FPGA_Tracer{
 
@@ -127,6 +169,33 @@ private:
     const int FPGA_MAX_RAYS = 40000;
 
 
+    const int ADDR_AP_CTRL = 0x00
+    const int ADDR_GIE     = 0x04
+    const int ADDR_IER     = 0x08
+    const int ADDR_ISR     = 0x0c
+
+    const int ADDR_I_TNUMBER_DATA = 0x10;
+    const int BITS_I_TNUMBER_DATA = 32;
+
+    const int ADDR_I_TDATA_DATA = 0x18;
+    const int BITS_I_TDATA_DATA = 32;
+
+    const int ADDR_I_TIDS_DATA = 0x20;
+    const int BITS_I_TIDS_DATA = 32;
+
+    const int ADDR_I_RNUMBER_DATA = 0x28;
+    const int BITS_I_RNUMBER_DATA = 32;
+
+    const int ADDR_I_RDATA_DATA = 0x30;
+    const int BITS_I_RDATA_DATA = 32;
+
+    const int ADDR_O_TIDS_DATA = 0x38;
+    const int BITS_O_TIDS_DATA = 32;
+
+    const int ADDR_O_TINTERSECTS_DATA = 0x40;
+    const int BITS_O_TINTERSECTS_DATA = 32;
+
+
     /** This array is used to receive the output data from the FPGA.
     *   It stores the ids of the closest triangle to the ray of number
     *   i = 0, ..., nRays
@@ -134,8 +203,8 @@ private:
     int *m_outputIds;
 
     /** Used to receive the output data from the FPGA.
-    *   It stores the intersection parameter t of the closest triangle to the 
-    *   ray of number i = 0, ..., nRays. 
+    *   It stores the intersection parameter t of the closest triangle to the
+    *   ray of number i = 0, ..., nRays.
     */
     double *m_outputIntersects;
 
@@ -152,67 +221,40 @@ public:
         uint64_t NUM_TRIS = 2000;
         uint64_t TRI_SIZE = 9;
         uint64_t MAX_TRIS = 50000;
-
     }
 
-    /*
-    void prepareRays(const Camera& cam)
-    {
-        int hres = cam.getHorizontalResolution();
-        int vres = cam.getVerticalResolution();
-        for(int r = 0; r < vres; r++)
-        {
-            for(int c = 0; c < hres; c++)
-            {
-                int base = ((r * hres) + c) * 6;
-                auto&& ray = cam.getRay(r, c);
-                rData[base + 0] = ray.origin.x;
-                rData[base + 1] = ray.origin.y;
-                rData[base + 2] = ray.origin.z;
-                rData[base + 3] = ray.direction.x;
-                rData[base + 4] = ray.direction.y;
-                rData[base + 5] = ray.direction.z;
-            }
-        }
+    void setup(const Camera& cam, const std::shared_ptr<Mesh>& mesh);
 
-    }
+    void asyncRun();
+
+    void run();
+
+    bool isIdle();
 
 
-    void prepareTriangles(const std::shared_ptr<Mesh>& m)
-    {
-        for(int i = 0; i < m->triangles.size(); i++)
-        {
-            idData[i] = i;
-            int base = i * 9;
-            tData[base + 0] = m->triangles[i]->p1.x;
-            tData[base + 1] = m->triangles[i]->p1.y;
-            tData[base + 2] = m->triangles[i]->p1.z;
-            tData[base + 3] = m->triangles[i]->p2.x;
-            tData[base + 4] = m->triangles[i]->p2.y;
-            tData[base + 5] = m->triangles[i]->p2.z;
-            tData[base + 6] = m->triangles[i]->p3.x;
-            tData[base + 7] = m->triangles[i]->p3.y;
-            tData[base + 8] = m->triangles[i]->p3.z;
-        }
-    }
 
-    */
 };
 
+#endif // FPGA
 
 #define DEBUG
+//#define RENDER
+
 
 int main(int argc, char** argv){
 
 
+    testBRDF();
+
     string obj, output;
-    int camx = 4, camy = 0, camz = 3;
-    int hres = atoi(argv[3]), vres = atoi(argv[4]);
-    double psize = 1.0;
+    int camx = 0, camy = 2.5, camz = 2.5;
+    double psize = 0.9;
+    int hres, vres;
     if(argc > 1 )
     {
         obj = argv[1];
         output = argv[2];
+        hres = atoi(argv[3]), vres = atoi(argv[4]);
         camx = atof(argv[5]);
         camy = atof(argv[6]);
         camz = atof(argv[7]);
@@ -220,7 +262,8 @@ int main(int argc, char** argv){
     }
     else
     {
-        obj = "3d_models/teddy.obj";
+        hres = 200; vres = 200;
+        obj = "3d_models/bunny/bunny_2k.obj";
         output = "image.ppm";
     }
 
@@ -235,26 +278,30 @@ int main(int argc, char** argv){
 
     shared_ptr<Light> light = make_shared<Light>(2.0, Color(1.0), Vec3d(50.0, 50.0, 50.0));
 
-    Color matCol = RED;
-    double matDif = 0.7;
+    std::vector<Light> lights;
+    lights.reserve(8);
+    lights.emplace_back(2.0, Color(1.0), Vec3d(50.0));
+    lights.emplace_back(1.0, Color(1.0), Vec3d(-50., -50., 50.));
+
+    std::vector<std::unique_ptr<material::Material>> materialData;
+    materialData.reserve(8);
+    materialData.emplace_back(new material::Matte(0.7, BLUE));
 
     struct timespec start, stop;
 
     clock_gettime(CLOCK_MONOTONIC, &start);//time = clock();
 
 
-
-    double hostIntersects[hres * vres];
-    int hostIds[hres * vres];
-
-    
     #ifndef FPGA
+
     int r, c;
     for(r = 0; r < vres; r++)
     for(c = 0; c < hres; c++)
     {
         Color L;
         Ray ray = cam.getRay(r, c);
+
+        Intersection it;
 
         double tMin = 10000000.0;
         int idMin = -1, iMin = -1;
@@ -267,18 +314,27 @@ int main(int argc, char** argv){
                 idMin = m->triangles[i]->getId();
                 tMin = t;
                 iMin = i;
+
+                it.t = t;
+                it.triangleId = idMin;
+
             }
         }
 
         if(idMin != -1)
         {
-            Vec3d wo = -ray.direction;
-            double dot = m->triangles[iMin]->normal * wo;
-            Color lightInfluence = light->mColor * light->mIntensity;
-            L = (matCol * matDif * INV_PI) * lightInfluence * dot;
+
+            it.normalVector = m->triangles[iMin]->normal;
+            it.hit = true;
+            it.rayDirection = ray.direction;
+            it.hitPoint = ray.rayPoint(it.t);
+            it.triangleId = iMin;
+
+            L = materialData[0]->shade(it, lights);
+
         }
 
-        im->setPixel(c, r, L);
+        im->setPixel(c, r, L.clamp());
 
     }
     #else

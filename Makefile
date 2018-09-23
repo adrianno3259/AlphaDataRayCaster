@@ -14,7 +14,7 @@ OBJS_DIR=obj
 HEADER_DIR=include
 DEP_DIR=deps
 
-INC_DIR = -I$(HEADER_DIR) -I/home/fpgadev/Documents/Adrianno/admpcieku3_sdk-2.0.0/host/api-v1_4_18b9/include
+INC_DIR = -I$(HEADER_DIR) -I/alphaDataSDK/include
 
 CPP_FLAGS=
 
@@ -29,13 +29,17 @@ HEADERS= $(wildcard include/*.h)
 
 DEPS=$(patsubst %.cpp, %.d, $(SOURCES))
 
+
+LINK_FLAGS= # -ladmxrc3
+
+
 run: $(EXEC) clean_intermediate
 	./$(EXEC)
 
 target : $(EXEC)
 
 $(EXEC) : $(OBJS)
-	$(LINKER) $^ -o $@ -ladmxrc3
+	$(LINKER) $^ -o $@ $(LINK_FLAGS)
 
 %.o: %.cpp
 	$(CC) $(CPP_FLAGS) $(INC_DIR) -c $< -o $@
