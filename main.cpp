@@ -247,8 +247,8 @@ int main(int argc, char** argv){
     testBRDF();
 
     string obj, output;
-    int camx = 0, camy = 2.5, camz = 2.5;
-    double psize = 0.9;
+    int camx = 0, camy = 2.5, camz = 2.0;
+    double psize = 0.25;
     int hres, vres;
     if(argc > 1 )
     {
@@ -262,12 +262,12 @@ int main(int argc, char** argv){
     }
     else
     {
-        hres = 200; vres = 200;
+        hres = 1280; vres = 720;
         obj = "3d_models/bunny/bunny_2k.obj";
         output = "image.ppm";
     }
 
-    Vec3d eye(camx, camy, camz), lkp(0, 0, 0), up(0,0,1);
+    Vec3d eye(camx, camy, camz), lkp(0, 0, 0.3), up(0,0,1);
     double dist = 200;
 
     Camera cam = Camera(eye, lkp, up, dist, psize, vres, hres);
@@ -285,7 +285,7 @@ int main(int argc, char** argv){
 
     std::vector<std::unique_ptr<material::Material>> materialData;
     materialData.reserve(8);
-    materialData.emplace_back(new material::Matte(0.7, BLUE));
+    materialData.emplace_back(new material::Matte(0.7, RED));
 
     struct timespec start, stop;
 
