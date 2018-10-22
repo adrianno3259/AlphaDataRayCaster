@@ -1,0 +1,182 @@
+# depslib dependency file v1.0
+1539539355 source:/home/adrianno/Documents/Projects/AlphaDataRayCaster/main.cpp
+	<iostream>
+	<cstdlib>
+	<cstdio>
+	<utility>
+	<ctime>
+	<cmath>
+	<algorithm>
+	<random>
+	<fstream>
+	<Vec3d.h>
+	<Mesh.h>
+	<GridData.h>
+	<Triangle.h>
+	<Grid.h>
+	<Camera.h>
+	<CameraData.h>
+	<Image.h>
+	<Light.h>
+	<material/BRDF.h>
+	<material/Material.h>
+	<Constants.h>
+	"admxrc3.h"
+
+1534658549 /home/adrianno/Documents/Projects/AlphaDataRayCaster/include/Vec3d.h
+
+1534714776 /home/adrianno/Documents/Projects/AlphaDataRayCaster/include/Mesh.h
+	<vector>
+	<string>
+	"Triangle.h"
+	<memory>
+
+1539215042 /home/adrianno/Documents/Projects/AlphaDataRayCaster/include/Triangle.h
+	"Vec3d.h"
+	"../Globals.h"
+	"Ray.h"
+
+1534658549 /home/adrianno/Documents/Projects/AlphaDataRayCaster/Globals.h
+
+1534658549 /home/adrianno/Documents/Projects/AlphaDataRayCaster/include/Ray.h
+	"Vec3d.h"
+
+1534658549 /home/adrianno/Documents/Projects/AlphaDataRayCaster/include/GridData.h
+	<array>
+
+1534658549 /home/adrianno/Documents/Projects/AlphaDataRayCaster/include/Grid.h
+	<vector>
+	<utility>
+	<memory>
+	"Scene.h"
+	"GridData.h"
+
+1534658549 /home/adrianno/Documents/Projects/AlphaDataRayCaster/include/Scene.h
+	"Mesh.h"
+	<vector>
+	<memory>
+
+1534706754 /home/adrianno/Documents/Projects/AlphaDataRayCaster/include/Camera.h
+	"Vec3d.h"
+	"Ray.h"
+	"CameraData.h"
+
+1534658549 /home/adrianno/Documents/Projects/AlphaDataRayCaster/include/CameraData.h
+
+1534658549 /home/adrianno/Documents/Projects/AlphaDataRayCaster/include/Image.h
+	<vector>
+	<iostream>
+	"Color.h"
+
+1537565172 /home/adrianno/Documents/Projects/AlphaDataRayCaster/include/Color.h
+
+1536620425 /home/adrianno/Documents/Projects/AlphaDataRayCaster/include/Light.h
+	"Color.h"
+	"Vec3d.h"
+	<Intersection.h>
+
+1537215758 /home/adrianno/Documents/Projects/AlphaDataRayCaster/include/Intersection.h
+	<Vec3d.h>
+
+1537215684 /home/adrianno/Documents/Projects/AlphaDataRayCaster/include/material/BRDF.h
+	"Color.h"
+	"Vec3d.h"
+	<Intersection.h>
+
+1537215652 /home/adrianno/Documents/Projects/AlphaDataRayCaster/include/material/Material.h
+	"BRDF.h"
+	<vector>
+	<Light.h>
+	<Color.h>
+	<Intersection.h>
+
+1536358185 /home/adrianno/Documents/Projects/AlphaDataRayCaster/include/Constants.h
+
+1488480567 /home/adrianno/Documents/Projects/AlphaDataRayCaster/alphaDataSDK/include/admxrc3.h
+	<windows.h>
+	<tchar.h>
+	<stdint.h>
+	<wchar.h>
+	<vxWorks.h>
+	<semLib.h>
+	<admxrc3/platform.h>
+	<admxrc3/status.h>
+	<admxrc3/types.h>
+	<admxrc3/structs.h>
+	<admxrc3/ticket.h>
+
+1297256875 /home/adrianno/Documents/Projects/AlphaDataRayCaster/alphaDataSDK/include/admxrc3/platform.h
+	<stdint.h>
+	<stdint.h>
+
+1308932533 /home/adrianno/Documents/Projects/AlphaDataRayCaster/alphaDataSDK/include/admxrc3/status.h
+
+1488480567 /home/adrianno/Documents/Projects/AlphaDataRayCaster/alphaDataSDK/include/admxrc3/types.h
+
+1361191592 /home/adrianno/Documents/Projects/AlphaDataRayCaster/alphaDataSDK/include/admxrc3/structs.h
+
+1274280732 /home/adrianno/Documents/Projects/AlphaDataRayCaster/alphaDataSDK/include/admxrc3/ticket.h
+
+1536621930 source:/home/adrianno/Documents/Projects/AlphaDataRayCaster/src/BRDF.cpp
+	"material/BRDF.h"
+	<Constants.h>
+
+1534658549 source:/home/adrianno/Documents/Projects/AlphaDataRayCaster/src/Camera.cpp
+	"Camera.h"
+	<cstdlib>
+	<iostream>
+
+1534658549 source:/home/adrianno/Documents/Projects/AlphaDataRayCaster/src/CameraData.cpp
+	"CameraData.h"
+	<cstdlib>
+
+1537565038 source:/home/adrianno/Documents/Projects/AlphaDataRayCaster/src/Color.cpp
+	<algorithm>
+	"Color.h"
+
+1534658549 source:/home/adrianno/Documents/Projects/AlphaDataRayCaster/src/Grid.cpp
+	"../include/Grid.h"
+	<cstdlib>
+
+1534658549 source:/home/adrianno/Documents/Projects/AlphaDataRayCaster/src/GridData.cpp
+	"GridData.h"
+	<iostream>
+	<cstdlib>
+
+1534658549 source:/home/adrianno/Documents/Projects/AlphaDataRayCaster/src/Image.cpp
+	"Image.h"
+	<fstream>
+
+1536620480 source:/home/adrianno/Documents/Projects/AlphaDataRayCaster/src/Light.cpp
+	"Light.h"
+
+1537565141 source:/home/adrianno/Documents/Projects/AlphaDataRayCaster/src/Material.cpp
+	<material/Material.h>
+
+1539215067 source:/home/adrianno/Documents/Projects/AlphaDataRayCaster/src/Mesh.cpp
+	"Mesh.h"
+	<fstream>
+
+1534658549 source:/home/adrianno/Documents/Projects/AlphaDataRayCaster/src/Ray.cpp
+	"Ray.h"
+
+1534658549 source:/home/adrianno/Documents/Projects/AlphaDataRayCaster/src/Scene.cpp
+	"../include/Scene.h"
+
+1534658549 source:/home/adrianno/Documents/Projects/AlphaDataRayCaster/src/Triangle.cpp
+	"../include/Triangle.h"
+	"../Globals.h"
+	<iostream>
+
+1534658549 source:/home/adrianno/Documents/Projects/AlphaDataRayCaster/src/TriangleBase.cpp
+	"TriangleBase.h"
+
+1534658549 /home/adrianno/Documents/Projects/AlphaDataRayCaster/include/TriangleBase.h
+	"Triangle.h"
+	<memory>
+	<vector>
+
+1534658549 source:/home/adrianno/Documents/Projects/AlphaDataRayCaster/src/Vec3d.cpp
+	"../include/Vec3d.h"
+	<cmath>
+
