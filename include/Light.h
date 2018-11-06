@@ -3,14 +3,25 @@
 
 #include "Color.h"
 #include "Vec3d.h"
+#include <Intersection.h>
 
+/** Super-class for all types of light sources. It stores
+*   information like, light intensity, color and position.
+*   It also contains methods to obtain the light surface
+*   leaving radiance.
+*
+*   P.S.: Currently just modeling a point light
+*/
 class Light
 {
     public:
         Light();
         Light(float intensity,
-              Color color,
-              Vec3d position);
+              const Color& color,
+              const Vec3d& position);
+
+        virtual Color getRadiance() const;
+        virtual Vec3d getDirection(const Vec3d& inter) const;
 
         virtual ~Light();
 

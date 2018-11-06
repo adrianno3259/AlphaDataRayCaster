@@ -8,16 +8,20 @@
 #include <random>
 #include <fstream>
 
-#include "include/Vec3d.h"
-#include "include/Mesh.h"
-#include "include/GridData.h"
-#include "include/Triangle.h"
-#include "include/Grid.h"
-#include "include/Camera.h"
-#include "include/CameraData.h"
-#include "include/Image.h"
-#include "include/Light.h"
-//#include "include/TriangleBase.h"
+#include <Vec3d.h>
+#include <Mesh.h>
+#include <GridData.h>
+#include <Triangle.h>
+#include <Grid.h>
+#include <Camera.h>
+#include <CameraData.h>
+#include <Image.h>
+#include <Light.h>
+
+#include <material/BRDF.h>
+#include <material/Material.h>
+
+#include <Constants.h>
 
 #ifdef FPGA
 #   include "admxrc3.h"
@@ -26,7 +30,7 @@
 #define PV(A) cout<<#A<<" = "<<A<endl
 #define FOR(I,N) for(int I = 0; I < N; I++)
 
-#define INV_PI 0.318309886
+//#define INV_PI 0.318309886
 
 #define TRUE (0==0)
 #define FALSE (0==1)
@@ -59,11 +63,6 @@ using namespace std;
 #define forObj(mesh) cout<<"mesh id = "<<mesh->getId()<<"\n";for(int i = 0; i < 5; i++){mesh->triangles[i]->printData();}
 
 vector<shared_ptr<Mesh> > meshes;
-/*
-vector<shared_ptr<Light> >    lights;
-vector<shared_ptr<Material> > materials;
-*/
-
 
 void prepareRays(double* rData, const Camera& cam)
 {
@@ -83,7 +82,6 @@ void prepareRays(double* rData, const Camera& cam)
             rData[base + 5] = ray.direction.z;
         }
     }
-
 }
 
 
@@ -105,14 +103,117 @@ void prepareTriangles(double *tData, int *idData, const std::shared_ptr<Mesh>& m
     }
 }
 
+template<typename T>
+class DataArray
+{
+private:
+    /** Number of elements in the array used
+    */
+    int m_size;
+
+    /** Pointer to an array of elements of type T
+    */
+    T *m_data;
+
+public:
+
+    /** Default constructor. Initializes a null pointer
+    *   and size 0
+    */
+    DataArray() :
+        m_size(0),
+        m_data(nullptr){}
+
+    /** Allocation constructor, Initializes an empty array
+    *   of size <nElems>
+    *
+    *   @param [in] nElems
+    *       number of elements that will be allocated in m_data
+    */
+    DataArray(int nElems) :
+        m_size(nElems)
+    {
+        this->m_data = new T[this->m_size];
+    }
+
+    /** Allocation constructor, Initializes an empty array
+    *   of size <nElems>
+    *
+    *   @param [in] nElems
+    *       number of elements that will be allocated in m_data
+    *
+    *   @param [in] data
+    *       array of elements to be stored
+    */
+    DataArray(int nElems, T* data) :
+        m_size(nElems),
+        m_data(data)
+    {
+
+
+    }
+
+    ~DataArray()
+    {
+        delete[] this->m_data;
+    }
+
+};
+
+namespace processing
+{
+    /** Current number of class instances
+    */
+    int NUM_INSTANCES = 0;
+
+    class I_ProcessingUnit
+    {
+    private:
+        /** Identifier of the prcessing unit
+        */
+        int m_id;
+    public:
+
+        /** Default constructor: Initialize the object id
+        */
+        I_ProcessingUnit() : m_id(NUM_INSTANCES++) {}
+
+        /** Virtual method responsible for running the application in this
+        *   processing unit
+        */
+        virtual void run();
+
+        /** Virtual method responsible for running the application in this
+        *   processing unit asynchronously
+        */
+        virtual void asyncRun();
+
+        /** Return the processing unit identifier
+        */
+        int getId()
+        {
+            return this->m_id;
+        }
+    };
+
+
+    class I_RayTracerProcessingUnit : public I_ProcessingUnit
+    {
+
+
+    };
+
+}
 
 #ifdef FPGA
+
 class FPGA_Tracer{
 
 private:
 
     int m_numberOfRays;
     int m_numberOfTriangles;
+
 
     unsigned long m_index;
     ADMXRC3_STATUS m_status;
@@ -124,6 +225,33 @@ private:
     const int FPGA_MAX_RAYS = 40000;
 
 
+    const int ADDR_AP_CTRL = 0x00;
+    const int ADDR_GIE     = 0x04;
+    const int ADDR_IER     = 0x08;
+    const int ADDR_ISR     = 0x0c;
+
+    const int ADDR_I_TNUMBER_DATA = 0x10;
+    const int BITS_I_TNUMBER_DATA = 32;
+
+    const int ADDR_I_TDATA_DATA = 0x18;
+    const int BITS_I_TDATA_DATA = 32;
+
+    const int ADDR_I_TIDS_DATA = 0x20;
+    const int BITS_I_TIDS_DATA = 32;
+
+    const int ADDR_I_RNUMBER_DATA = 0x28;
+    const int BITS_I_RNUMBER_DATA = 32;
+
+    const int ADDR_I_RDATA_DATA = 0x30;
+    const int BITS_I_RDATA_DATA = 32;
+
+    const int ADDR_O_TIDS_DATA = 0x38;
+    const int BITS_O_TIDS_DATA = 32;
+
+    const int ADDR_O_TINTERSECTS_DATA = 0x40;
+    const int BITS_O_TINTERSECTS_DATA = 32;
+
+
     /** This array is used to receive the output data from the FPGA.
     *   It stores the ids of the closest triangle to the ray of number
     *   i = 0, ..., nRays
@@ -131,8 +259,8 @@ private:
     int *m_outputIds;
 
     /** Used to receive the output data from the FPGA.
-    *   It stores the intersection parameter t of the closest triangle to the 
-    *   ray of number i = 0, ..., nRays. 
+    *   It stores the intersection parameter t of the closest triangle to the
+    *   ray of number i = 0, ..., nRays.
     */
     double *m_outputIntersects;
 
@@ -149,15 +277,23 @@ public:
         uint64_t NUM_TRIS = 2000;
         uint64_t TRI_SIZE = 9;
         uint64_t MAX_TRIS = 50000;
-
     }
+
+    void setup(const Camera& cam, const std::shared_ptr<Mesh>& mesh);
+
+    void asyncRun();
+
+    void run();
+
+    bool isIdle();
+
 
 
 };
 #endif
 
-int main(int argc, char** argv){
 
+int main(int argc, char** argv){
 
     string obj, output;
     int camx = 0, camy = 2.5, camz = 2.5;
@@ -188,7 +324,7 @@ int main(int argc, char** argv){
         output = "image.ppm";
     }
 
-    Vec3d eye(camx, camy, camz), lkp(0, 0, 0), up(0,0,1);
+    Vec3d eye(camx, camy, camz), lkp(0, 0, 0.3), up(0,0,1);
     double dist = 200;
 
     Camera cam = Camera(eye, lkp, up, dist, psize, vres, hres);
@@ -199,8 +335,14 @@ int main(int argc, char** argv){
 
     shared_ptr<Light> light = make_shared<Light>(2.0, Color(1.0), Vec3d(50.0, 50.0, 50.0));
 
-    Color matCol = RED;
-    double matDif = 0.7;
+    std::vector<Light> lights;
+    lights.reserve(8);
+    lights.emplace_back(2.0, Color(1.0), Vec3d(50.0));
+    lights.emplace_back(1.0, Color(1.0), Vec3d(-50., -50., 50.));
+
+    std::vector<std::unique_ptr<material::Material>> materialData;
+    materialData.reserve(8);
+    materialData.emplace_back(new material::Matte(0.7, RED));
 
     clock_t fulltime_t0 = clock(), fulltime_tf;
 
@@ -218,7 +360,9 @@ int main(int argc, char** argv){
             Color L;
             Ray ray = cam.getRay(r, c);
 
-            double tMin = 1e9;
+            Intersection it;
+
+            double tMin = 10000000.0;
             int idMin = -1, iMin = -1;
             for(int i = 0; i < m->triangles.size(); i++)
             {
@@ -229,23 +373,30 @@ int main(int argc, char** argv){
                     idMin = m->triangles[i]->getId();
                     tMin = t;
                     iMin = i;
+
+                    it.t = t;
+                    it.triangleId = idMin;
+
                 }
             }
 
             if(idMin != -1)
             {
-                
-                Vec3d wo = -ray.direction;
-                double dot = m->triangles[iMin]->normal * wo;
-                Color lightInfluence = light->mColor * light->mIntensity;
-                L = (matCol * matDif * INV_PI) * lightInfluence * dot;
+
+                it.normalVector = m->triangles[iMin]->normal;
+                it.hit = true;
+                it.rayDirection = ray.direction;
+                it.hitPoint = ray.rayPoint(it.t);
+                it.triangleId = iMin;
+
+                L = materialData[0]->shade(it, lights);
+
             }
 
-            //fs << idMin << " " << tMin << std::endl;
-
-            im->setPixel(c, r, L);
-
+            im->setPixel(c, r, L.clamp());
         }
+      }
+      
     }
     else
     {
@@ -445,45 +596,48 @@ int main(int argc, char** argv){
             /// Identifier of the triangle hit by the current ray
             int hitId = outIds[rayId];
 
+            Intersection it;
+
+            Ray ray = cam.getRay(r, c);
+
             if(hitId != -1)
             {
                 Vec3d wo =
                     Vec3d(
-                        -rData[rayId * Ray::NUM_ATTRIBUTES + 3],
-                        -rData[rayId * Ray::NUM_ATTRIBUTES + 4],
-                        -rData[rayId * Ray::NUM_ATTRIBUTES + 5]
+                        rData[rayId * Ray::NUM_ATTRIBUTES + 3],
+                        rData[rayId * Ray::NUM_ATTRIBUTES + 4],
+                        rData[rayId * Ray::NUM_ATTRIBUTES + 5]
                     );// -ray.direction;
 
-                double dot = m->triangles[hitId]->normal * wo;
-                Color lightInfluence = light->mColor * light->mIntensity;
-                L = (matCol * matDif * INV_PI) * lightInfluence * dot;
+                //double dot = m->triangles[hitId]->normal * wo;
+                //Color lightInfluence = light->mColor * light->mIntensity;
+                //L = (matCol * matDif * INV_PI) * lightInfluence * dot;
+
+                it.normalVector = m->triangles[hitId]->normal;
+                it.hit = true;
+                it.rayDirection = wo;
+                it.t = outInter[rayId];
+                it.hitPoint = ray.rayPoint(it.t);
+                it.triangleId = hitId;
+
+                L = materialData[0]->shade(it, lights);
             }
 
             im->setPixel(c, r, L);
+
         }
-
-        std::fstream fs;
-        fs.open("intersects_fpga.dat", std::fstream::out);
-
-        for(int i = 0; i < vres*hres; i++)
-        {
-            fs << outIds[i] << " " << outInter[i] << std::endl;
-        }
-
-        fs.close();
+      
 
         status = ADMXRC3_Close(hCard);
         if (status != ADMXRC3_SUCCESS) {
             fprintf(stderr,"Failed to close card with index %lu: %s\n", (unsigned long)index, ADMXRC3_GetStatusString(status, TRUE));
             return -1;
-        }
 
         delete[] rData;
         delete[] tData;
         delete[] idData;
         delete[] outIds;
         delete[] outInter;
-
         #else
 
         std::cerr << "ERROR: FPGA usage not compiled in this version:\n"

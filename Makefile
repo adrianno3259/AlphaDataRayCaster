@@ -56,7 +56,6 @@ else
 LINK_FLAGS=
 endif
 
-
 CPP_FLAGS= $(INC_DIR)
 
 target : $(EXEC)

@@ -15,6 +15,7 @@ Mesh::Mesh(std::string filename) : id(Mesh::MESH_NEXT_ID++)
     char line[200];
     int v_count = 0, vt_count = 0, vn_count = 0, triCounter = 0;
     std::vector<Vec3d> v;
+    //std::vector<std::vector<int>> vertexNormals;
 
     /// While not at the end of file
     while(!sourceFile.eof()){
@@ -26,6 +27,7 @@ Mesh::Mesh(std::string filename) : id(Mesh::MESH_NEXT_ID++)
                 double vx, vy, vz;
                 sscanf(line+1, "%lf %lf %lf\n", &vx, &vy, &vz);
                 v.push_back(Vec3d(vx,vy,vz));
+                //vertexNormals.emplace_back();
                 v_count++;
             }
             else if(line[1] == 'n') /// Support for reading normals from obj file
@@ -40,16 +42,39 @@ Mesh::Mesh(std::string filename) : id(Mesh::MESH_NEXT_ID++)
         }
         else if(line[0] == 'f') /// reading mesh faces
         {
-                int a, b, c, e, f, g, h, i;
-                //sscanf(line+1, "%d/%d/%d %d/%d/%d %d/%d/%d\n", &a,&g,&h,&b,&e,&f,&c,&h,&i);
-                sscanf(line+1, "%d %d %d\n", &a,&b,&c);
-                this->triangles.push_back(std::make_shared<Triangle>(v[a-1],
-                                                                     v[b-1],
-                                                                     v[c-1],
-                                                                     triCounter));
-                triCounter++;
+
+            int a, b, c, e, f, g, h, i;
+            //sscanf(line+1, "%d/%d/%d %d/%d/%d %d/%d/%d\n", &a,&g,&h,&b,&e,&f,&c,&h,&i);
+            sscanf(line+1, "%d %d %d\n", &a,&b,&c);
+
+            this->triangles.push_back(
+                std::make_shared<Triangle>(
+                    v[a-1],
+                    v[b-1],
+                    v[c-1],
+                    triCounter
+                )
+            );
+
+            /*
+            vertexNormals[a - 1].push_back(triCounter);
+            vertexNormals[b - 1].push_back(triCounter);
+            vertexNormals[c - 1].push_back(triCounter);
+            */
+
+            triCounter++;
         }
     }
+    /*
+
+    for(int vert = 0; vert < vertexNormals.size(); vert++)
+    {
+        for(int i = 0; i < vertexNormals[vert].size(); i++)
+        {
+            int triangle_id = vertexNormals[vert][i];
+            this->triangle[triangle_id].vertexNormals[]
+        }
+    }*/
     printf("triangle number: %d\n", triCounter);
     sourceFile.close();
 }

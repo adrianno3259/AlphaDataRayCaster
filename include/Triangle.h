@@ -16,6 +16,10 @@ class Triangle
         /// Triangle vertices
         Vec3d p1, p2, p3;
 
+
+        /// Triangle vertex normal vectors
+        Vec3d vertexNormals[3];
+
        /// Trangle normal vector
         Vec3d normal;
 
@@ -84,11 +88,12 @@ class Triangle
 
         /// Number of attributes to be stored and sent
         /// to the FPGA
-        static const int NUM_ATTRIBUTES = 12;
+        static const int NUM_ATTRIBUTES = 9;
 
     protected:
         /// Triangle id
         int id;
+
 
         /// id of the mesh the triangle is in.
         /// easier to find the correct material

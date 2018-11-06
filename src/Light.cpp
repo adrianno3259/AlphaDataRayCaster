@@ -5,10 +5,7 @@ Light::Light()
 
 }
 
-Light::Light(float intensity,
-      Color color,
-      Vec3d position) :
-
+Light::Light(float intensity, const Color& color, const Vec3d& position) :
     mIntensity(intensity),
     mColor(color),
     mPosition(position)
@@ -18,7 +15,15 @@ Light::Light(float intensity,
 }
 
 
-Light::~Light()
+Light::~Light() {}
+
+
+Color Light::getRadiance() const
 {
-    //dtor
+    return this->mIntensity * this->mColor;
+}
+
+Vec3d Light::getDirection(const Vec3d& inter) const
+{
+    return this->mPosition - inter;
 }
