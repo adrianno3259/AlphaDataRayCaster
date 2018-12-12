@@ -16,7 +16,7 @@ class Light
 {
     public:
         Light();
-        Light(float intensity,
+        Light(double intensity,
               const Color& color,
               const Vec3d& position);
 
@@ -25,7 +25,7 @@ class Light
 
         virtual ~Light();
 
-        float mIntensity;
+        double mIntensity;
         Color mColor;
         Vec3d mPosition;
 

@@ -1,0 +1,26 @@
+
+light 
+point 
+50.0 50.0 50.0 
+2.0 
+1.0 1.0 1.0
+
+light point 
+-50.0 -50.0 50.0 
+1.0 
+1.0 1.0 1.0
+
+mesh tests/test_cases/test_cpu/bunny_2k.obj
+
+camera 
+300 300
+0.2
+0.0 5.0 5.0
+0.0 0.0 0.0 
+0.0 0.0 1.0 
+200.0
+
+material 
+matte 
+0.7 
+1.0 0.0 1.0

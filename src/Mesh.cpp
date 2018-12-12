@@ -2,10 +2,11 @@
 #include <fstream>
 
 
+
 Mesh::Mesh(){}
 
 
-Mesh::Mesh(std::string filename) : id(Mesh::MESH_NEXT_ID++)
+Mesh::Mesh(std::string filename) // : id(Mesh::MESH_NEXT_ID++)
 {
     /// object file stream
     std::fstream sourceFile;

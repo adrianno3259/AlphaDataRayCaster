@@ -8,23 +8,42 @@
 #include <random>
 #include <fstream>
 
-#include <Vec3d.h>
-#include <Mesh.h>
-#include <GridData.h>
-#include <Triangle.h>
-#include <Grid.h>
-#include <Camera.h>
-#include <CameraData.h>
-#include <Image.h>
-#include <Light.h>
+#include "Vec3d.h"
+#include "Mesh.h"
+#include "GridData.h"
+#include "Triangle.h"
+#include "Grid.h"
+#include "Camera.h"
+#include "CameraData.h"
+#include "Image.h"
+#include "Light.h"
+#include "application/Session.h"
 
-#include <material/BRDF.h>
-#include <material/Material.h>
+#include "material/BRDF.h"
+#include "material/Material.h"
 
-#include <Constants.h>
+#include "Constants.h"
 
 #ifdef FPGA
 #   include "admxrc3.h"
+#   define XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL            0x00
+#   define XINTERSECTFPGA_CONTROL_ADDR_GIE                0x04
+#   define XINTERSECTFPGA_CONTROL_ADDR_IER                0x08
+#   define XINTERSECTFPGA_CONTROL_ADDR_ISR                0x0c
+#   define XINTERSECTFPGA_CONTROL_ADDR_I_TNUMBER_DATA     0x10
+#   define XINTERSECTFPGA_CONTROL_BITS_I_TNUMBER_DATA     32
+#   define XINTERSECTFPGA_CONTROL_ADDR_I_TDATA_DATA       0x18
+#   define XINTERSECTFPGA_CONTROL_BITS_I_TDATA_DATA       32
+#   define XINTERSECTFPGA_CONTROL_ADDR_I_TIDS_DATA        0x20
+#   define XINTERSECTFPGA_CONTROL_BITS_I_TIDS_DATA        32
+#   define XINTERSECTFPGA_CONTROL_ADDR_I_RNUMBER_DATA     0x28
+#   define XINTERSECTFPGA_CONTROL_BITS_I_RNUMBER_DATA     32
+#   define XINTERSECTFPGA_CONTROL_ADDR_I_RDATA_DATA       0x30
+#   define XINTERSECTFPGA_CONTROL_BITS_I_RDATA_DATA       32
+#   define XINTERSECTFPGA_CONTROL_ADDR_O_TIDS_DATA        0x38
+#   define XINTERSECTFPGA_CONTROL_BITS_O_TIDS_DATA        32
+#   define XINTERSECTFPGA_CONTROL_ADDR_O_TINTERSECTS_DATA 0x40
+#   define XINTERSECTFPGA_CONTROL_BITS_O_TINTERSECTS_DATA 32
 #endif
 
 #define PV(A) cout<<#A<<" = "<<A<endl
@@ -35,28 +54,9 @@
 #define TRUE (0==0)
 #define FALSE (0==1)
 
-#define XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL            0x00
-#define XINTERSECTFPGA_CONTROL_ADDR_GIE                0x04
-#define XINTERSECTFPGA_CONTROL_ADDR_IER                0x08
-#define XINTERSECTFPGA_CONTROL_ADDR_ISR                0x0c
-#define XINTERSECTFPGA_CONTROL_ADDR_I_TNUMBER_DATA     0x10
-#define XINTERSECTFPGA_CONTROL_BITS_I_TNUMBER_DATA     32
-#define XINTERSECTFPGA_CONTROL_ADDR_I_TDATA_DATA       0x18
-#define XINTERSECTFPGA_CONTROL_BITS_I_TDATA_DATA       32
-#define XINTERSECTFPGA_CONTROL_ADDR_I_TIDS_DATA        0x20
-#define XINTERSECTFPGA_CONTROL_BITS_I_TIDS_DATA        32
-#define XINTERSECTFPGA_CONTROL_ADDR_I_RNUMBER_DATA     0x28
-#define XINTERSECTFPGA_CONTROL_BITS_I_RNUMBER_DATA     32
-#define XINTERSECTFPGA_CONTROL_ADDR_I_RDATA_DATA       0x30
-#define XINTERSECTFPGA_CONTROL_BITS_I_RDATA_DATA       32
-#define XINTERSECTFPGA_CONTROL_ADDR_O_TIDS_DATA        0x38
-#define XINTERSECTFPGA_CONTROL_BITS_O_TIDS_DATA        32
-#define XINTERSECTFPGA_CONTROL_ADDR_O_TINTERSECTS_DATA 0x40
-#define XINTERSECTFPGA_CONTROL_BITS_O_TINTERSECTS_DATA 32
-
 /// initializing the triangle instance counter
 //int Triangle::TRIANGLE_NEXT_ID = 0;
-int Mesh::MESH_NEXT_ID = 0;
+//int Mesh::MESH_NEXT_ID = 0;
 
 using namespace std;
 
@@ -166,6 +166,7 @@ namespace processing
     */
     int NUM_INSTANCES = 0;
 
+
     class I_ProcessingUnit
     {
     private:
@@ -200,9 +201,31 @@ namespace processing
     class I_RayTracerProcessingUnit : public I_ProcessingUnit
     {
 
-
+    private:
+        int _numThreads;
+    public:
+        /** Virtual method responsible for running the application in this
+        *   processing unit
+        */
+        virtual void run();
     };
 
+    class ProcessingUnitFactory
+    {
+    public:
+        ProcessingUnitFactory()
+        {
+
+        }
+        
+        ~ProcessingUnitFactory()
+        {
+
+        }
+
+        std::shared_ptr<I_ProcessingUnit> getInstance();        
+        
+    };
 }
 
 #ifdef FPGA
@@ -292,57 +315,129 @@ public:
 };
 #endif
 
+#include <SimpleArgParser/SimpleArgParser.hpp>
+
+namespace arguments
+{
+    const std::string file = "--file";
+    const std::string output = "--output";
+    const std::string use_fpga = "--use-fpga";
+}
+
+namespace DarkRenderer
+{
+         
+    std::shared_ptr<parser::ArgumentParser> argumentParser;
+    bool argumentsParsed = false;
+
+    application::Session session;
+
+    /** Initialize the CLI argument parser from
+    *   SimpleArgParser lib. 
+    *
+    *   @param argc
+    *       Number of command line arguments. Redirected from main
+    *   @param argv
+    *       Array of CLI string arguments. Redirected from main
+    */
+    void InitParser(int argc, char** argv)
+    {
+        // Init parser
+        argumentParser = 
+            make_shared<parser::ArgumentParser>(argc, argv);
+
+        // Add input file argument
+        argumentParser->addArgument(
+            arguments::file,
+            true,
+            "Path to a .dark input file"
+        );
+
+        // Add the output image file argument
+        argumentParser->addArgument(
+            arguments::output,
+            true,
+            "Path to a PPM output file."
+        );
+
+        argumentParser->addArgument(
+            arguments::use_fpga,
+            false,
+            "Render the image using the FPGA board."
+        );
+        argumentParser->parse();
+
+        argumentsParsed = true;
+    }
+
+
+    void InitSession()
+    {
+
+        if(DarkRenderer::argumentParser->hasValue(arguments::file)
+        ) {
+
+            std::string file = 
+                DarkRenderer::argumentParser->getArgument
+                    <std::string>(
+                        arguments::file
+                    );
+
+            std::cout << "LOG: file defined: "
+                      << file
+                      << std::endl;
+            session.readDarkFile(
+                file
+            );
+        }
+
+        if(DarkRenderer::argumentParser->hasValue(arguments::output))
+        {
+            std::cout << "LOG: Output name" << std::endl;
+            session.outputName = 
+                DarkRenderer::argumentParser->getArgument<std::string>(
+                    arguments::output
+                );
+        }
+
+        session.useFPGA =
+            DarkRenderer::argumentParser->isDefined(
+                arguments::use_fpga
+            );
+    
+    }
+
+    
+
+}
+
+
+class IntersectionUnit_CPU
+{
+private:
+    std::vector<std::pair<int, double>> output;
+public:
+    IntersectionUnit_CPU(){}
+    
+    void render(
+        const std::vector<Mesh>& meshes,
+        const std::vector<Ray>& rays
+        )
+    {
+
+    }
+};
+
+
 
 int main(int argc, char** argv){
 
-    string obj, output;
-    int camx = 0, camy = 2.5, camz = 2.5;
-    int hres = 125, vres = 125;
-    double psize = 0.9;
-    bool useFPGA = false;
 
-    if(argc > 2 )
-    {
-        obj = argv[1];
-        output = argv[2];
-        hres = atoi(argv[3]);
-        vres = atoi(argv[4]);
-        camx = atof(argv[5]);
-        camy = atof(argv[6]);
-        camz = atof(argv[7]);
-        psize = atof(argv[8]);
-    }
-    else
-    {
-        if(argc == 2)
-        {
-            std::string fpga(argv[1]);
-            if(fpga == "true")
-                useFPGA = true;
-        }
-        obj = "3d_models/bunny/bunny_2k.obj";
-        output = "image.ppm";
-    }
+    application::Session& sess = DarkRenderer::session;
 
-    Vec3d eye(camx, camy, camz), lkp(0, 0, 0.3), up(0,0,1);
-    double dist = 200;
+    DarkRenderer::InitParser(argc, argv);
 
-    Camera cam = Camera(eye, lkp, up, dist, psize, vres, hres);
-
-    shared_ptr<Mesh> m = make_shared<Mesh>(obj);
-
-    shared_ptr<Image> im = make_shared<Image>(hres, vres);
-
-    shared_ptr<Light> light = make_shared<Light>(2.0, Color(1.0), Vec3d(50.0, 50.0, 50.0));
-
-    std::vector<Light> lights;
-    lights.reserve(8);
-    lights.emplace_back(2.0, Color(1.0), Vec3d(50.0));
-    lights.emplace_back(1.0, Color(1.0), Vec3d(-50., -50., 50.));
-
-    std::vector<std::unique_ptr<material::Material>> materialData;
-    materialData.reserve(8);
-    materialData.emplace_back(new material::Matte(0.7, RED));
+    DarkRenderer::InitSession();
 
     clock_t fulltime_t0 = clock(), fulltime_tf;
 
@@ -350,52 +445,64 @@ int main(int argc, char** argv){
 
     clock_gettime(CLOCK_MONOTONIC, &start);
 
-    if(!useFPGA)
+    if(!DarkRenderer::session.useFPGA)
     {
-        std::cout << "LOG: Beginning to process in the CPU\n";
-        int r, c;
-        for(r = 0; r < vres; r++)
-        for(c = 0; c < hres; c++)
-        {
-            Color L;
-            Ray ray = cam.getRay(r, c);
 
-            Intersection it;
+        #define printVar(V) std::cout << #V << " = " << V << std::endl
+        printVar(sess.meshes.size());
+        printVar(sess.materials.size());
+        if(sess.meshes.size() > 0 && sess.materials.size() > 0)
+        {    
+            std::cout << "LOG: Beginning to process in the CPU" << std::endl;
+            std::cout 
+                << "LOG: Image of size " 
+                << sess.camera->getHorizontalResolution() 
+                << "x" 
+                << sess.camera->getVerticalResolution() 
+                << std::endl;
 
-            double tMin = 10000000.0;
-            int idMin = -1, iMin = -1;
-            for(int i = 0; i < m->triangles.size(); i++)
+            int r, c;
+            for(r = 0; r < sess.camera->getVerticalResolution(); r++)
+            for(c = 0; c < sess.camera->getHorizontalResolution(); c++)
             {
-                double t;
-                bool hit = m->triangles[i]->hit(ray, t);
-                if(hit && t < tMin)
+                Color L;
+                Ray ray = sess.camera->getRay(r, c);
+    
+                Intersection it;
+    
+                double tMin = 10000000.0;
+                int idMin = -1, iMin = -1;
+                for(int i = 0; i < sess.meshes[0].triangles.size(); i++)
                 {
-                    idMin = m->triangles[i]->getId();
-                    tMin = t;
-                    iMin = i;
-
-                    it.t = t;
-                    it.triangleId = idMin;
-
+                    double t;
+                    bool hit = sess.meshes[0].triangles[i]->hit(ray, t);
+                    if(hit && t < tMin)
+                    {
+                        idMin = sess.meshes[0].triangles[i]->getId();
+                        tMin = t;
+                        iMin = i;
+    
+                        it.t = t;
+                        it.triangleId = idMin;
+    
+                    }
                 }
+    
+                if(idMin != -1)
+                {
+    
+                    it.normalVector = sess.meshes[0].triangles[iMin]->normal;
+                    it.hit = true;
+                    it.rayDirection = ray.direction;
+                    it.hitPoint = ray.rayPoint(it.t);
+                    it.triangleId = iMin;
+    
+                    L = sess.materials[0]->shade(it, sess.lights);
+    
+                }
+                sess.frames[0].setPixel(c, r, L.clamp());
             }
-
-            if(idMin != -1)
-            {
-
-                it.normalVector = m->triangles[iMin]->normal;
-                it.hit = true;
-                it.rayDirection = ray.direction;
-                it.hitPoint = ray.rayPoint(it.t);
-                it.triangleId = iMin;
-
-                L = materialData[0]->shade(it, lights);
-
-            }
-
-            im->setPixel(c, r, L.clamp());
         }
-      }
       
     }
     else
@@ -623,7 +730,7 @@ int main(int argc, char** argv){
                 L = materialData[0]->shade(it, lights);
             }
 
-            im->setPixel(c, r, L);
+            (sess.frames[0]).setPixel(c, r, L);
 
         }
       
@@ -638,6 +745,7 @@ int main(int argc, char** argv){
         delete[] idData;
         delete[] outIds;
         delete[] outInter;
+
         #else
 
         std::cerr << "ERROR: FPGA usage not compiled in this version:\n"
@@ -661,13 +769,14 @@ int main(int argc, char** argv){
     clock_gettime(CLOCK_MONOTONIC, &stop);
     float tm = (stop.tv_sec - start.tv_sec) + (stop.tv_nsec - start.tv_nsec) / 1e9;
     printf("Rendering %s with resolution %dx%d took %f seconds\n",
-            obj.c_str(),
-            hres,
-            vres,
+            DarkRenderer::session.outputName.c_str(),
+            sess.camera->getHorizontalResolution(),
+            sess.camera->getVerticalResolution(),
             tm);
 
-    cout<<"Saving "<<output<<"\n";
-    im->save(output.c_str());
+    cout << "Saving " << DarkRenderer::session.outputName <<"\n";
+    if(sess.frames.size() > 0)
+        (sess.frames[0]).save(sess.outputName.c_str());
 
     return 0;
 }
