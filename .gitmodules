@@ -1,3 +1,0 @@
-[submodule "include/SimpleArgParser"]
-	path = include/SimpleArgParser
-	url = git@github.com:adrianno3259/SimpleArgParser.git

@@ -10,7 +10,7 @@ project "DarkRenderer"
 
    flags = { "-std=c++11" }
 
-   includedirs {"include"}
+   includedirs {"include", "deps"}
    files { "include/**.h", "src/**.cpp", "main.cpp" }
 
    filter "configurations:Debug"

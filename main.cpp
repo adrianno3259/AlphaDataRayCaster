@@ -103,218 +103,11 @@ void prepareTriangles(double *tData, int *idData, const std::shared_ptr<Mesh>& m
     }
 }
 
-template<typename T>
-class DataArray
+#include "application/Parser.h"
+
+namespace application
 {
-private:
-    /** Number of elements in the array used
-    */
-    int m_size;
-
-    /** Pointer to an array of elements of type T
-    */
-    T *m_data;
-
-public:
-
-    /** Default constructor. Initializes a null pointer
-    *   and size 0
-    */
-    DataArray() :
-        m_size(0),
-        m_data(nullptr){}
-
-    /** Allocation constructor, Initializes an empty array
-    *   of size <nElems>
-    *
-    *   @param [in] nElems
-    *       number of elements that will be allocated in m_data
-    */
-    DataArray(int nElems) :
-        m_size(nElems)
-    {
-        this->m_data = new T[this->m_size];
-    }
-
-    /** Allocation constructor, Initializes an empty array
-    *   of size <nElems>
-    *
-    *   @param [in] nElems
-    *       number of elements that will be allocated in m_data
-    *
-    *   @param [in] data
-    *       array of elements to be stored
-    */
-    DataArray(int nElems, T* data) :
-        m_size(nElems),
-        m_data(data)
-    {
-
-
-    }
-
-    ~DataArray()
-    {
-        delete[] this->m_data;
-    }
-
-};
-
-namespace processing
-{
-    /** Current number of class instances
-    */
-    int NUM_INSTANCES = 0;
-
-
-    class I_ProcessingUnit
-    {
-    private:
-        /** Identifier of the prcessing unit
-        */
-        int m_id;
-    public:
-
-        /** Default constructor: Initialize the object id
-        */
-        I_ProcessingUnit() : m_id(NUM_INSTANCES++) {}
-
-        /** Virtual method responsible for running the application in this
-        *   processing unit
-        */
-        virtual void run();
-
-        /** Virtual method responsible for running the application in this
-        *   processing unit asynchronously
-        */
-        virtual void asyncRun();
-
-        /** Return the processing unit identifier
-        */
-        int getId()
-        {
-            return this->m_id;
-        }
-    };
-
-
-    class I_RayTracerProcessingUnit : public I_ProcessingUnit
-    {
-
-    private:
-        int _numThreads;
-    public:
-        /** Virtual method responsible for running the application in this
-        *   processing unit
-        */
-        virtual void run();
-    };
-
-    class ProcessingUnitFactory
-    {
-    public:
-        ProcessingUnitFactory()
-        {
-
-        }
-        
-        ~ProcessingUnitFactory()
-        {
-
-        }
-
-        std::shared_ptr<I_ProcessingUnit> getInstance();        
-        
-    };
-}
-
-#ifdef FPGA
-
-class FPGA_Tracer{
-
-private:
-
-    int m_numberOfRays;
-    int m_numberOfTriangles;
-
-
-    unsigned long m_index;
-    ADMXRC3_STATUS m_status;
-    ADMXRC3_HANDLE m_hCard;
-
-    const int FPGA_TRI_ATTR_NUMBER = 9;
-    const int FPGA_RAY_ATTR_NUMBER = 6;
-    const int FPGA_MAX_TRIS = 50000;
-    const int FPGA_MAX_RAYS = 40000;
-
-
-    const int ADDR_AP_CTRL = 0x00;
-    const int ADDR_GIE     = 0x04;
-    const int ADDR_IER     = 0x08;
-    const int ADDR_ISR     = 0x0c;
-
-    const int ADDR_I_TNUMBER_DATA = 0x10;
-    const int BITS_I_TNUMBER_DATA = 32;
-
-    const int ADDR_I_TDATA_DATA = 0x18;
-    const int BITS_I_TDATA_DATA = 32;
-
-    const int ADDR_I_TIDS_DATA = 0x20;
-    const int BITS_I_TIDS_DATA = 32;
-
-    const int ADDR_I_RNUMBER_DATA = 0x28;
-    const int BITS_I_RNUMBER_DATA = 32;
-
-    const int ADDR_I_RDATA_DATA = 0x30;
-    const int BITS_I_RDATA_DATA = 32;
-
-    const int ADDR_O_TIDS_DATA = 0x38;
-    const int BITS_O_TIDS_DATA = 32;
-
-    const int ADDR_O_TINTERSECTS_DATA = 0x40;
-    const int BITS_O_TINTERSECTS_DATA = 32;
-
-
-    /** This array is used to receive the output data from the FPGA.
-    *   It stores the ids of the closest triangle to the ray of number
-    *   i = 0, ..., nRays
-    */
-    int *m_outputIds;
-
-    /** Used to receive the output data from the FPGA.
-    *   It stores the intersection parameter t of the closest triangle to the
-    *   ray of number i = 0, ..., nRays.
-    */
-    double *m_outputIntersects;
-
-public:
-
-    FPGA_Tracer() :
-        m_index(0),
-        m_hCard(ADMXRC3_HANDLE_INVALID_VALUE)
-    {
-        uint64_t NUM_RAYS = 40000;
-        uint64_t RAY_SIZE = 6;
-        uint64_t MAX_RAYS = 40000;
-
-        uint64_t NUM_TRIS = 2000;
-        uint64_t TRI_SIZE = 9;
-        uint64_t MAX_TRIS = 50000;
-    }
-
-    void setup(const Camera& cam, const std::shared_ptr<Mesh>& mesh);
-
-    void asyncRun();
-
-    void run();
-
-    bool isIdle();
-
-
-
-};
-#endif
-
+/*
 #include <SimpleArgParser/SimpleArgParser.hpp>
 
 namespace arguments
@@ -323,14 +116,10 @@ namespace arguments
     const std::string output = "--output";
     const std::string use_fpga = "--use-fpga";
 }
-
-namespace DarkRenderer
-{
          
     std::shared_ptr<parser::ArgumentParser> argumentParser;
     bool argumentsParsed = false;
 
-    application::Session session;
 
     /** Initialize the CLI argument parser from
     *   SimpleArgParser lib. 
@@ -339,7 +128,7 @@ namespace DarkRenderer
     *       Number of command line arguments. Redirected from main
     *   @param argv
     *       Array of CLI string arguments. Redirected from main
-    */
+    *
     void InitParser(int argc, char** argv)
     {
         // Init parser
@@ -369,18 +158,21 @@ namespace DarkRenderer
 
         argumentsParsed = true;
     }
-
+    */
+    
+    application::Session session;
 
     void InitSession()
     {
 
-        if(DarkRenderer::argumentParser->hasValue(arguments::file)
+        if(application::argumentParser->hasValue(
+            application::arguments::file)
         ) {
 
             std::string file = 
-                DarkRenderer::argumentParser->getArgument
+                application::argumentParser->getArgument
                     <std::string>(
-                        arguments::file
+                        application::arguments::file
                     );
 
             std::cout << "LOG: file defined: "
@@ -391,53 +183,32 @@ namespace DarkRenderer
             );
         }
 
-        if(DarkRenderer::argumentParser->hasValue(arguments::output))
+        if(application::argumentParser->hasValue(application::arguments::output))
         {
             std::cout << "LOG: Output name" << std::endl;
             session.outputName = 
-                DarkRenderer::argumentParser->getArgument<std::string>(
-                    arguments::output
+                application::argumentParser->getArgument<std::string>(
+                    application::arguments::output
                 );
         }
 
         session.useFPGA =
-            DarkRenderer::argumentParser->isDefined(
-                arguments::use_fpga
+            application::argumentParser->isDefined(
+                application::arguments::use_fpga
             );
     
     }
-
-    
-
 }
-
-
-class IntersectionUnit_CPU
-{
-private:
-    std::vector<std::pair<int, double>> output;
-public:
-    IntersectionUnit_CPU(){}
-    
-    void render(
-        const std::vector<Mesh>& meshes,
-        const std::vector<Ray>& rays
-        )
-    {
-
-    }
-};
-
 
 
 int main(int argc, char** argv){
 
 
-    application::Session& sess = DarkRenderer::session;
+    application::Session& sess = application::session;
 
-    DarkRenderer::InitParser(argc, argv);
+    application::InitParser(argc, argv);
 
-    DarkRenderer::InitSession();
+    application::InitSession();
 
     clock_t fulltime_t0 = clock(), fulltime_tf;
 
@@ -445,12 +216,8 @@ int main(int argc, char** argv){
 
     clock_gettime(CLOCK_MONOTONIC, &start);
 
-    if(!DarkRenderer::session.useFPGA)
+    if(!application::session.useFPGA)
     {
-
-        #define printVar(V) std::cout << #V << " = " << V << std::endl
-        printVar(sess.meshes.size());
-        printVar(sess.materials.size());
         if(sess.meshes.size() > 0 && sess.materials.size() > 0)
         {    
             std::cout << "LOG: Beginning to process in the CPU" << std::endl;
@@ -769,12 +536,12 @@ int main(int argc, char** argv){
     clock_gettime(CLOCK_MONOTONIC, &stop);
     float tm = (stop.tv_sec - start.tv_sec) + (stop.tv_nsec - start.tv_nsec) / 1e9;
     printf("Rendering %s with resolution %dx%d took %f seconds\n",
-            DarkRenderer::session.outputName.c_str(),
+            application::session.outputName.c_str(),
             sess.camera->getHorizontalResolution(),
             sess.camera->getVerticalResolution(),
             tm);
 
-    cout << "Saving " << DarkRenderer::session.outputName <<"\n";
+    cout << "Saving " << application::session.outputName <<"\n";
     if(sess.frames.size() > 0)
         (sess.frames[0]).save(sess.outputName.c_str());
 
