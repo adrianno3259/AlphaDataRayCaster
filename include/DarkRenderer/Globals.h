@@ -5,12 +5,6 @@
 
 #include "Application/Session.h"
 
-namespace Globals{
-
-    const double EPSILON = 1.0e-9;
-    const double INFINITY = 1.0e9;
-}
-
 
 namespace DarkRenderer{
 
