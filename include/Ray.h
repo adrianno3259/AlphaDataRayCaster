@@ -15,6 +15,8 @@ class Ray
         Vec3d origin;
         /// Direction vector of the ray
         Vec3d direction;
+        /// Ray identifier number
+        long long int id;
 
         /**
         *   Default constructor

@@ -5,7 +5,7 @@ Light::Light()
 
 }
 
-Light::Light(float intensity, const Color& color, const Vec3d& position) :
+Light::Light(double intensity, const Color& color, const Vec3d& position) :
     mIntensity(intensity),
     mColor(color),
     mPosition(position)
