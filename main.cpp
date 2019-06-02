@@ -17,7 +17,6 @@
 #include "CameraData.h"
 #include "Image.h"
 #include "Light.h"
-#include "application/Session.h"
 
 #include "material/BRDF.h"
 #include "material/Material.h"
@@ -53,16 +52,6 @@
 
 #define TRUE (0==0)
 #define FALSE (0==1)
-
-/// initializing the triangle instance counter
-//int Triangle::TRIANGLE_NEXT_ID = 0;
-//int Mesh::MESH_NEXT_ID = 0;
-
-using namespace std;
-
-#define forObj(mesh) cout<<"mesh id = "<<mesh->getId()<<"\n";for(int i = 0; i < 5; i++){mesh->triangles[i]->printData();}
-
-vector<shared_ptr<Mesh> > meshes;
 
 void prepareRays(double* rData, const Camera& cam)
 {
@@ -103,152 +92,60 @@ void prepareTriangles(double *tData, int *idData, const std::shared_ptr<Mesh>& m
     }
 }
 
-#include "application/Parser.h"
+#include "DarkRenderer/Globals.h"
 
-namespace application
-{
-/*
-#include <SimpleArgParser/SimpleArgParser.hpp>
+#include "Application/Session.h"
 
-namespace arguments
-{
-    const std::string file = "--file";
-    const std::string output = "--output";
-    const std::string use_fpga = "--use-fpga";
-}
-         
-    std::shared_ptr<parser::ArgumentParser> argumentParser;
-    bool argumentsParsed = false;
+class Tracer{
+protected:
+    Application::Session& m_session;
 
+public:     
+    Tracer(Application::Session& sess) :
+        m_session(sess){}
 
-    /** Initialize the CLI argument parser from
-    *   SimpleArgParser lib. 
-    *
-    *   @param argc
-    *       Number of command line arguments. Redirected from main
-    *   @param argv
-    *       Array of CLI string arguments. Redirected from main
-    *
-    void InitParser(int argc, char** argv)
-    {
-        // Init parser
-        argumentParser = 
-            make_shared<parser::ArgumentParser>(argc, argv);
+    virtual void render(int frame) const = 0;
+};
 
-        // Add input file argument
-        argumentParser->addArgument(
-            arguments::file,
-            true,
-            "Path to a .dark input file"
-        );
+class CPUTracer : public Tracer{
+public:     
+    CPUTracer(Application::Session& sess) :
+        Tracer(sess) {}
 
-        // Add the output image file argument
-        argumentParser->addArgument(
-            arguments::output,
-            true,
-            "Path to a PPM output file."
-        );
-
-        argumentParser->addArgument(
-            arguments::use_fpga,
-            false,
-            "Render the image using the FPGA board."
-        );
-        argumentParser->parse();
-
-        argumentsParsed = true;
-    }
-    */
-    
-    application::Session session;
-
-    void InitSession()
+    virtual void render(int frame) const
     {
 
-        if(application::argumentParser->hasValue(
-            application::arguments::file)
-        ) {
-
-            std::string file = 
-                application::argumentParser->getArgument
-                    <std::string>(
-                        application::arguments::file
-                    );
-
-            std::cout << "LOG: file defined: "
-                      << file
-                      << std::endl;
-            session.readDarkFile(
-                file
-            );
-        }
-
-        if(application::argumentParser->hasValue(application::arguments::output))
+        if(m_session.meshes.size() > 0 && m_session.materials.size() > 0)
         {
-            std::cout << "LOG: Output name" << std::endl;
-            session.outputName = 
-                application::argumentParser->getArgument<std::string>(
-                    application::arguments::output
-                );
-        }
-
-        session.useFPGA =
-            application::argumentParser->isDefined(
-                application::arguments::use_fpga
-            );
-    
-    }
-}
-
-
-int main(int argc, char** argv){
-
-
-    application::Session& sess = application::session;
-
-    application::InitParser(argc, argv);
-
-    application::InitSession();
-
-    clock_t fulltime_t0 = clock(), fulltime_tf;
-
-    struct timespec start, stop;
-
-    clock_gettime(CLOCK_MONOTONIC, &start);
-
-    if(!application::session.useFPGA)
-    {
-        if(sess.meshes.size() > 0 && sess.materials.size() > 0)
-        {    
             std::cout << "LOG: Beginning to process in the CPU" << std::endl;
             std::cout 
-                << "LOG: Image of size " 
-                << sess.camera->getHorizontalResolution() 
+                << "LOG: Image of size "
+                << m_session.camera->getHorizontalResolution() 
                 << "x" 
-                << sess.camera->getVerticalResolution() 
+                << m_session.camera->getVerticalResolution() 
                 << std::endl;
 
             int r, c;
-            for(r = 0; r < sess.camera->getVerticalResolution(); r++)
-            for(c = 0; c < sess.camera->getHorizontalResolution(); c++)
+            for(r = 0; r < m_session.camera->getVerticalResolution(); r++)
+            for(c = 0; c < m_session.camera->getHorizontalResolution(); c++)
             {
                 Color L;
-                Ray ray = sess.camera->getRay(r, c);
+                Ray ray = m_session.camera->getRay(r, c);
     
                 Intersection it;
     
-                double tMin = 10000000.0;
+                double tMin = Globals::INFINITY;
                 int idMin = -1, iMin = -1;
-                for(int i = 0; i < sess.meshes[0].triangles.size(); i++)
+                for(int i = 0; i < m_session.meshes[0].triangles.size(); i++)
                 {
                     double t;
-                    bool hit = sess.meshes[0].triangles[i]->hit(ray, t);
+                    bool hit = m_session.meshes[0].triangles[i]->hit(ray, t);
                     if(hit && t < tMin)
                     {
-                        idMin = sess.meshes[0].triangles[i]->getId();
+                        idMin = m_session.meshes[0].triangles[i]->getId();
                         tMin = t;
                         iMin = i;
-    
+
                         it.t = t;
                         it.triangleId = idMin;
     
@@ -258,23 +155,32 @@ int main(int argc, char** argv){
                 if(idMin != -1)
                 {
     
-                    it.normalVector = sess.meshes[0].triangles[iMin]->normal;
+                    it.normalVector = m_session.meshes[0].triangles[iMin]->normal;
                     it.hit = true;
                     it.rayDirection = ray.direction;
                     it.hitPoint = ray.rayPoint(it.t);
                     it.triangleId = iMin;
     
-                    L = sess.materials[0]->shade(it, sess.lights);
+                    L = m_session.materials[0]->shade(it, m_session.lights);
     
                 }
-                sess.frames[0].setPixel(c, r, L.clamp());
+                m_session.frames[0].setPixel(c, r, L.clamp());
             }
         }
-      
     }
-    else
-    {
-        #ifdef FPGA
+};
+
+#ifdef FPGA
+class FPGATracer : public Tracer
+{
+public:
+    FPGATracer(Application::Session& sess) :
+        Tracer(sess)
+        {}
+    
+    ~FPGATracer();
+    
+    virtual void render(int frame) const{
         /// Initializing the basic information of the raytracing session
         int nRays = vres * hres, nTris = m->triangles.size();
         const int FPGA_TRI_ATTR_NUMBER = 9;
@@ -286,13 +192,13 @@ int main(int argc, char** argv){
         ADMXRC3_STATUS status;
         ADMXRC3_HANDLE hCard = ADMXRC3_HANDLE_INVALID_VALUE;
 
-    	uint64_t NUM_RAYS = nRays;
-    	uint64_t RAY_SIZE = 6;
-    	uint64_t MAX_RAYS = 921600;
+        uint64_t NUM_RAYS = nRays;
+        uint64_t RAY_SIZE = 6;
+        uint64_t MAX_RAYS = 921600;
 
-    	uint64_t NUM_TRIS = nTris;
-    	uint64_t TRI_SIZE = 9;
-    	uint64_t MAX_TRIS = 50000;
+        uint64_t NUM_TRIS = nTris;
+        uint64_t TRI_SIZE = 9;
+        uint64_t MAX_TRIS = 50000;
 
         double *rData = nullptr, *tData = nullptr, *outInter = nullptr;
         int *idData = nullptr, *outIds = nullptr;
@@ -345,75 +251,75 @@ int main(int argc, char** argv){
         /// Declaring the base addresses of the arrays in the
         /// FPGA DDR memory
         uint64_t addr_tris = 0;
-    	uint64_t addr_ids = sizeof(double) * FPGA_MAX_TRIS * TRI_SIZE;
-    	uint64_t addr_rays = addr_ids + (sizeof(int) * FPGA_MAX_TRIS);
-    	uint64_t addr_outInter = addr_rays + (sizeof(double) * FPGA_MAX_RAYS * Ray::NUM_ATTRIBUTES);
-    	uint64_t addr_outIds = addr_outInter + (sizeof(double) * FPGA_MAX_RAYS);
+        uint64_t addr_ids = sizeof(double) * FPGA_MAX_TRIS * TRI_SIZE;
+        uint64_t addr_rays = addr_ids + (sizeof(int) * FPGA_MAX_TRIS);
+        uint64_t addr_outInter = addr_rays + (sizeof(double) * FPGA_MAX_RAYS * Ray::NUM_ATTRIBUTES);
+        uint64_t addr_outIds = addr_outInter + (sizeof(double) * FPGA_MAX_RAYS);
         uint64_t ctrl = 0;
 
-    	/// Opening FPGA card
-    	status = ADMXRC3_Open(0, &hCard);
-    	if (status != ADMXRC3_SUCCESS) {
+        /// Opening FPGA card
+        status = ADMXRC3_Open(0, &hCard);
+        if (status != ADMXRC3_SUCCESS) {
             fprintf(
                 stderr,
                 "Failed to open card with index %lu: %s\n",
                 (unsigned long) index,
                 ADMXRC3_GetStatusString(status, TRUE)
             );
-    		return -1;
-    	}
+            return -1;
+        }
 
         /// Getting the status of the Accelerator by reading the CTRL address
         printf("IP Status:\n");
-    	ADMXRC3_Read(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
-    	printf("status 0x%lx\n",ctrl);
+        ADMXRC3_Read(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
+        printf("status 0x%lx\n",ctrl);
 
         /// Writing the new command (idle)
-    	ADMXRC3_Write(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
+        ADMXRC3_Write(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
 
-    	/// Writing to the input addresses
-    	/// Number of Triangles
-    	ADMXRC3_Write(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_I_TNUMBER_DATA, sizeof(uint64_t), &nTris);
-    	/// idData base address
-    	ADMXRC3_Write(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_I_TIDS_DATA, sizeof(uint64_t), &addr_ids);
-    	/// tData base address
-    	ADMXRC3_Write(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_I_TDATA_DATA, sizeof(uint64_t), &addr_tris);
+        /// Writing to the input addresses
+        /// Number of Triangles
+        ADMXRC3_Write(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_I_TNUMBER_DATA, sizeof(uint64_t), &nTris);
+        /// idData base address
+        ADMXRC3_Write(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_I_TIDS_DATA, sizeof(uint64_t), &addr_ids);
+        /// tData base address
+        ADMXRC3_Write(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_I_TDATA_DATA, sizeof(uint64_t), &addr_tris);
         /// Number of Rays
-    	ADMXRC3_Write(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_I_RNUMBER_DATA, sizeof(uint64_t), &nRays);
-    	/// rData base address
-    	ADMXRC3_Write(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_I_RDATA_DATA, sizeof(uint64_t), &addr_rays);
+        ADMXRC3_Write(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_I_RNUMBER_DATA, sizeof(uint64_t), &nRays);
+        /// rData base address
+        ADMXRC3_Write(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_I_RDATA_DATA, sizeof(uint64_t), &addr_rays);
         /// outIds base address - triangle id output
-    	ADMXRC3_Write(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_O_TIDS_DATA, sizeof(uint64_t), &addr_outIds);
-    	/// outInter base address - triangle intersection distance output
-    	ADMXRC3_Write(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_O_TINTERSECTS_DATA, sizeof(uint64_t), &addr_outInter);
+        ADMXRC3_Write(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_O_TIDS_DATA, sizeof(uint64_t), &addr_outIds);
+        /// outInter base address - triangle intersection distance output
+        ADMXRC3_Write(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_O_TINTERSECTS_DATA, sizeof(uint64_t), &addr_outInter);
 
 
-    	/// FPGA Memory copy of the input arrays via DMA
+        /// FPGA Memory copy of the input arrays via DMA
         ///---------------------------------------------------
-    	///---------------------dma writes--------------------
-    	///---------------------------------------------------
+        ///---------------------dma writes--------------------
+        ///---------------------------------------------------
 
         /// Writing tData
-    	status = ADMXRC3_WriteDMA(hCard, 0, 0, tData, nTris * FPGA_TRI_ATTR_NUMBER * sizeof(double), addr_tris);
-    	if (status != ADMXRC3_SUCCESS) {
-    		fprintf(stderr,"Triangle data write DMA transfer failed: %s\n", ADMXRC3_GetStatusString(status, TRUE));
-    		return -1;
-    	}
+        status = ADMXRC3_WriteDMA(hCard, 0, 0, tData, nTris * FPGA_TRI_ATTR_NUMBER * sizeof(double), addr_tris);
+        if (status != ADMXRC3_SUCCESS) {
+            fprintf(stderr,"Triangle data write DMA transfer failed: %s\n", ADMXRC3_GetStatusString(status, TRUE));
+            return -1;
+        }
 
         /// Writing idData
-    	status = ADMXRC3_WriteDMA(hCard, 0, 0, idData, NUM_TRIS * sizeof(int), addr_ids);
-    	if (status != ADMXRC3_SUCCESS) {
-    		fprintf(stderr,"Id data write DMA transfer failed: %s\n", ADMXRC3_GetStatusString(status, TRUE));
-    		return -1;
-    	}
+        status = ADMXRC3_WriteDMA(hCard, 0, 0, idData, NUM_TRIS * sizeof(int), addr_ids);
+        if (status != ADMXRC3_SUCCESS) {
+            fprintf(stderr,"Id data write DMA transfer failed: %s\n", ADMXRC3_GetStatusString(status, TRUE));
+            return -1;
+        }
 
 
         /// Writing rData
-    	status = ADMXRC3_WriteDMA(hCard, 0, 0, rData, NUM_RAYS * RAY_SIZE * sizeof(double), addr_rays);
-    	if (status != ADMXRC3_SUCCESS) {
-    		fprintf(stderr,"Triangle data write DMA transfer failed: %s\n", ADMXRC3_GetStatusString(status, TRUE));
-    		return -1;
-    	}
+        status = ADMXRC3_WriteDMA(hCard, 0, 0, rData, NUM_RAYS * RAY_SIZE * sizeof(double), addr_rays);
+        if (status != ADMXRC3_SUCCESS) {
+            fprintf(stderr,"Triangle data write DMA transfer failed: %s\n", ADMXRC3_GetStatusString(status, TRUE));
+            return -1;
+        }
         printf("write dma done!\n");
 
 
@@ -433,32 +339,32 @@ int main(int argc, char** argv){
 
         /// Write control value = 1 (start)
         ctrl = 1;
-    	ADMXRC3_Write(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
+        ADMXRC3_Write(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
 
-    	/// Polling the FPGA for the results
-    	ADMXRC3_Read(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
-    	while(ctrl != 4)
-    	{
-    		ADMXRC3_Read(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
-    	}
-    	printf("done!\n");
+        /// Polling the FPGA for the results
+        ADMXRC3_Read(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
+        while(ctrl != 4)
+        {
+            ADMXRC3_Read(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
+        }
+        printf("done!\n");
 
 
-    	/// Getting the result back from the FPGA
+        /// Getting the result back from the FPGA
 
-    	/// Id of the triangles hit by the sent rays
-    	status = ADMXRC3_ReadDMA(hCard, 0, 0, outIds, NUM_RAYS * sizeof(int), addr_outIds);
-    	if (status != ADMXRC3_SUCCESS) {
-    		fprintf(stderr,"outIds read DMA transfer failed: %s\n", ADMXRC3_GetStatusString(status, TRUE));
-    		return -1;
-    	}
+        /// Id of the triangles hit by the sent rays
+        status = ADMXRC3_ReadDMA(hCard, 0, 0, outIds, NUM_RAYS * sizeof(int), addr_outIds);
+        if (status != ADMXRC3_SUCCESS) {
+            fprintf(stderr,"outIds read DMA transfer failed: %s\n", ADMXRC3_GetStatusString(status, TRUE));
+            return -1;
+        }
 
         /// Intersection parameter of where the triangle was hit
-    	status = ADMXRC3_ReadDMA(hCard, 0, 0, outInter, NUM_RAYS * sizeof(double), addr_outInter);
-    	if (status != ADMXRC3_SUCCESS) {
-    		fprintf(stderr,"outInter read DMA transfer failed: %s\n", ADMXRC3_GetStatusString(status, TRUE));
-    		return -1;
-    	}
+        status = ADMXRC3_ReadDMA(hCard, 0, 0, outInter, NUM_RAYS * sizeof(double), addr_outInter);
+        if (status != ADMXRC3_SUCCESS) {
+            fprintf(stderr,"outInter read DMA transfer failed: %s\n", ADMXRC3_GetStatusString(status, TRUE));
+            return -1;
+        }
 
         int r, c;
         for(r = 0; r < vres; r++)
@@ -497,7 +403,7 @@ int main(int argc, char** argv){
                 L = materialData[0]->shade(it, lights);
             }
 
-            (sess.frames[0]).setPixel(c, r, L);
+            sess.frames[0].setPixel(c, r, L);
 
         }
       
@@ -512,20 +418,49 @@ int main(int argc, char** argv){
         delete[] idData;
         delete[] outIds;
         delete[] outInter;
+    }
 
+};
+#endif
+
+
+
+int main(int argc, char** argv){
+
+    Application::Session& sess = DarkRenderer::session;
+
+    DarkRenderer::InitParser(argc, argv);
+
+    DarkRenderer::InitSession();
+
+    clock_t fulltime_t0 = clock(), fulltime_tf;
+
+    struct timespec start, stop;
+
+    clock_gettime(CLOCK_MONOTONIC, &start);
+
+    std::shared_ptr<Tracer> tracer;
+
+    if(!DarkRenderer::session.useFPGA)
+    {
+        tracer = std::make_shared<CPUTracer>(sess);
+    }
+    else
+    {
+        #ifdef FPGA
+        tracer = std::make_shared<FPGATracer>(sess);
         #else
-
         std::cerr << "ERROR: FPGA usage not compiled in this version:\n"
                   << "Please recompile with the command line option -DFPGA or run using\n"
                   << "the CPU instead.\n\n";
 
         exit(EXIT_FAILURE);
-
         #endif
 
     }
     
 
+    tracer->render();
     fulltime_tf = clock();
 
     std::cout 
@@ -536,14 +471,14 @@ int main(int argc, char** argv){
     clock_gettime(CLOCK_MONOTONIC, &stop);
     float tm = (stop.tv_sec - start.tv_sec) + (stop.tv_nsec - start.tv_nsec) / 1e9;
     printf("Rendering %s with resolution %dx%d took %f seconds\n",
-            application::session.outputName.c_str(),
+            DarkRenderer::session.outputName.c_str(),
             sess.camera->getHorizontalResolution(),
             sess.camera->getVerticalResolution(),
             tm);
 
-    cout << "Saving " << application::session.outputName <<"\n";
+    std::cout << "Saving " << DarkRenderer::session.outputName <<"\n";
     if(sess.frames.size() > 0)
-        (sess.frames[0]).save(sess.outputName.c_str());
+        sess.frames[0].save(sess.outputName.c_str());
 
     return 0;
 }

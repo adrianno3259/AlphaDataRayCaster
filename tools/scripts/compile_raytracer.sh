@@ -1,7 +1,7 @@
 #!/bin/bash
 
-
-echo $ADMRAY_PATH
+export ADMRAY_READY=true
+#echo $ADMRAY_PATH
 # check if ADMRAY_PATH is defined in the environment
 if [ "$ADMRAY_READY" == "true" ]; then
 	echo 'Ambient configured.'
