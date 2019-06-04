@@ -264,6 +264,15 @@ public:
             destinationBuffer);
     }
 
+    //void writeDMA(
+    //    )
+    //{
+    //    status = ADMXRC3_WriteDMA(m_cardHandle, 0, 0, tData, nTris * FPGA_TRI_ATTR_NUMBER * sizeof(double), addr_tris);
+    //    if (status != ADMXRC3_SUCCESS) {
+    //        fprintf(stderr,"Triangle data write DMA transfer failed: %s\n", ADMXRC3_GetStatusString(status, TRUE));
+    //        exit(EXIT_FAILURE);
+    //    }
+    //}
 
     virtual void render(int frame) {
 
@@ -353,8 +362,6 @@ public:
 
         /// Getting the status of the Accelerator by reading the CTRL address
         printf("IP Status:\n");
-
-
         //ADMXRC3_Read(m_cardHandle, m_deviceWindow, FPGA_NO_FLAGS, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &m_fpgaStatus);
         this->_updateStatusFPGA();
         printf("status 0x%lx\n", m_fpgaStatus);
@@ -367,19 +374,46 @@ public:
 
         /// Writing to the input addresses
         /// Number of Triangles
-        ADMXRC3_Write(m_cardHandle, m_deviceWindow, FPGA_NO_FLAGS, XINTERSECTFPGA_CONTROL_ADDR_I_TNUMBER_DATA, sizeof(uint64_t), &nTris);
+        this->writeFPGA(
+            XINTERSECTFPGA_CONTROL_ADDR_I_TNUMBER_DATA,
+            sizeof(uint64_t), 
+            &nTris);
+
         /// idData base address
-        ADMXRC3_Write(m_cardHandle, m_deviceWindow, FPGA_NO_FLAGS, XINTERSECTFPGA_CONTROL_ADDR_I_TIDS_DATA, sizeof(uint64_t), &addr_ids);
+        this->writeFPGA(
+            XINTERSECTFPGA_CONTROL_ADDR_I_TIDS_DATA, 
+            sizeof(uint64_t), 
+            &addr_ids);
+
         /// tData base address
-        ADMXRC3_Write(m_cardHandle, m_deviceWindow, FPGA_NO_FLAGS, XINTERSECTFPGA_CONTROL_ADDR_I_TDATA_DATA, sizeof(uint64_t), &addr_tris);
+        this->writeFPGA(
+            XINTERSECTFPGA_CONTROL_ADDR_I_TDATA_DATA, 
+            sizeof(uint64_t), 
+            &addr_tris);
+
         /// Number of Rays
-        ADMXRC3_Write(m_cardHandle, m_deviceWindow, FPGA_NO_FLAGS, XINTERSECTFPGA_CONTROL_ADDR_I_RNUMBER_DATA, sizeof(uint64_t), &nRays);
+        this->writeFPGA(
+            XINTERSECTFPGA_CONTROL_ADDR_I_RNUMBER_DATA, 
+            sizeof(uint64_t), 
+            &nRays);
+
         /// rData base address
-        ADMXRC3_Write(m_cardHandle, m_deviceWindow, FPGA_NO_FLAGS, XINTERSECTFPGA_CONTROL_ADDR_I_RDATA_DATA, sizeof(uint64_t), &addr_rays);
+        this->writeFPGA(
+            XINTERSECTFPGA_CONTROL_ADDR_I_RDATA_DATA, 
+            sizeof(uint64_t), 
+            &addr_rays);
+
         /// outIds base address - triangle id output
-        ADMXRC3_Write(m_cardHandle, m_deviceWindow, FPGA_NO_FLAGS, XINTERSECTFPGA_CONTROL_ADDR_O_TIDS_DATA, sizeof(uint64_t), &addr_outIds);
+        this->writeFPGA(
+            XINTERSECTFPGA_CONTROL_ADDR_O_TIDS_DATA, 
+            sizeof(uint64_t), 
+            &addr_outIds);
+
         /// outInter base address - triangle intersection distance output
-        ADMXRC3_Write(m_cardHandle, m_deviceWindow, FPGA_NO_FLAGS, XINTERSECTFPGA_CONTROL_ADDR_O_TINTERSECTS_DATA, sizeof(uint64_t), &addr_outInter);
+        this->writeFPGA(
+            XINTERSECTFPGA_CONTROL_ADDR_O_TINTERSECTS_DATA, 
+            sizeof(uint64_t), 
+            &addr_outInter);
 
 
         /// FPGA Memory copy of the input arrays via DMA
