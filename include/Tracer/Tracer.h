@@ -51,7 +51,7 @@ public:
     Tracer(Application::Session& sess) :
         m_session(sess){}
 
-    virtual void render(int frame) const = 0;
+    virtual void render(int frame) = 0;
 };
 
 
@@ -60,7 +60,7 @@ public:
     CPUTracer(Application::Session& sess) :
         Tracer(sess) {}
 
-    virtual void render(int frame) const
+    virtual void render(int frame) 
     {
 
         if(m_session.meshes.size() > 0 && m_session.materials.size() > 0)
@@ -143,42 +143,59 @@ class FPGATracer : public Tracer
     }
 
 
-    void prepareTriangles(double *tData, int *idData, const std::shared_ptr<Mesh>& m)
+    void prepareTriangles(double *tData, int *idData, const Mesh& m)
     {
-        for(int i = 0; i < m->triangles.size(); i++)
+        for(int i = 0; i < m.triangles.size(); i++)
         {
             idData[i] = i;
             int base = i * 9;
-            tData[base + 0] = m->triangles[i]->p1.x;
-            tData[base + 1] = m->triangles[i]->p1.y;
-            tData[base + 2] = m->triangles[i]->p1.z;
-            tData[base + 3] = m->triangles[i]->p2.x;
-            tData[base + 4] = m->triangles[i]->p2.y;
-            tData[base + 5] = m->triangles[i]->p2.z;
-            tData[base + 6] = m->triangles[i]->p3.x;
-            tData[base + 7] = m->triangles[i]->p3.y;
-            tData[base + 8] = m->triangles[i]->p3.z;
+            tData[base + 0] = m.triangles[i]->p1.x;
+            tData[base + 1] = m.triangles[i]->p1.y;
+            tData[base + 2] = m.triangles[i]->p1.z;
+            tData[base + 3] = m.triangles[i]->p2.x;
+            tData[base + 4] = m.triangles[i]->p2.y;
+            tData[base + 5] = m.triangles[i]->p2.z;
+            tData[base + 6] = m.triangles[i]->p3.x;
+            tData[base + 7] = m.triangles[i]->p3.y;
+            tData[base + 8] = m.triangles[i]->p3.z;
         }
     }
 
 public:
     FPGATracer(Application::Session& sess) :
-        Tracer(sess)
+        Tracer(sess),
+        m_cardID (ADMXRC3_HANDLE_INVALID_VALUE)
         {}
-    
-    ~FPGATracer();
-    
-    virtual void render(int frame) const{
+
+
+    ADMXRC3_HANDLE m_cardID;
+    int m_numberOfRays;
+    int m_numberOfTriangle;
+
+    void initFPGA()
+    {
+
+    }
+
+    virtual void render(int frame) {
+
+        int hres = m_session.camera->getHorizontalResolution();
+        int vres = m_session.camera->getVerticalResolution();
+
         /// Initializing the basic information of the raytracing session
-        int nRays = vres * hres, nTris = m->triangles.size();
+        m_numberOfRays = vres * hres;
+        int nRays = vres * hres, 
+            nTris = m_session.meshes[0].triangles.size();
+
         const int FPGA_TRI_ATTR_NUMBER = 9;
 
         const int FPGA_MAX_TRIS = 50000;
         const int FPGA_MAX_RAYS = 921600;
 
         unsigned long index = 0;
+        
         ADMXRC3_STATUS status;
-        ADMXRC3_HANDLE hCard = ADMXRC3_HANDLE_INVALID_VALUE;
+        
 
         uint64_t NUM_RAYS = nRays;
         uint64_t RAY_SIZE = 6;
@@ -227,14 +244,14 @@ public:
                 delete[] outInter;
             }
 
-            cerr << "It wasn't possible to alloc a memory of this size...\nMessage: ";
-            cerr << al.what() << "\n";
+            std::cerr << "It wasn't possible to alloc a memory of this size...\nMessage: ";
+            std::cerr << al.what() << "\n";
             exit(EXIT_FAILURE);
         }
 
         /// preparing data structures to send to the FPGA
-        prepareRays(rData, cam);
-        prepareTriangles(tData, idData, m);
+        prepareRays(rData, *m_session.camera);
+        prepareTriangles(tData, idData, m_session.meshes[0]);
 
         /// Declaring the base addresses of the arrays in the
         /// FPGA DDR memory
@@ -246,7 +263,7 @@ public:
         uint64_t ctrl = 0;
 
         /// Opening FPGA card
-        status = ADMXRC3_Open(0, &hCard);
+        status = ADMXRC3_Open(0, &m_cardID);
         if (status != ADMXRC3_SUCCESS) {
             fprintf(
                 stderr,
@@ -254,32 +271,32 @@ public:
                 (unsigned long) index,
                 ADMXRC3_GetStatusString(status, TRUE)
             );
-            return -1;
+            exit(EXIT_FAILURE);
         }
 
         /// Getting the status of the Accelerator by reading the CTRL address
         printf("IP Status:\n");
-        ADMXRC3_Read(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
+        ADMXRC3_Read(m_cardID, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
         printf("status 0x%lx\n",ctrl);
 
         /// Writing the new command (idle)
-        ADMXRC3_Write(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
+        ADMXRC3_Write(m_cardID, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
 
         /// Writing to the input addresses
         /// Number of Triangles
-        ADMXRC3_Write(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_I_TNUMBER_DATA, sizeof(uint64_t), &nTris);
+        ADMXRC3_Write(m_cardID, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_I_TNUMBER_DATA, sizeof(uint64_t), &nTris);
         /// idData base address
-        ADMXRC3_Write(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_I_TIDS_DATA, sizeof(uint64_t), &addr_ids);
+        ADMXRC3_Write(m_cardID, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_I_TIDS_DATA, sizeof(uint64_t), &addr_ids);
         /// tData base address
-        ADMXRC3_Write(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_I_TDATA_DATA, sizeof(uint64_t), &addr_tris);
+        ADMXRC3_Write(m_cardID, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_I_TDATA_DATA, sizeof(uint64_t), &addr_tris);
         /// Number of Rays
-        ADMXRC3_Write(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_I_RNUMBER_DATA, sizeof(uint64_t), &nRays);
+        ADMXRC3_Write(m_cardID, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_I_RNUMBER_DATA, sizeof(uint64_t), &nRays);
         /// rData base address
-        ADMXRC3_Write(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_I_RDATA_DATA, sizeof(uint64_t), &addr_rays);
+        ADMXRC3_Write(m_cardID, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_I_RDATA_DATA, sizeof(uint64_t), &addr_rays);
         /// outIds base address - triangle id output
-        ADMXRC3_Write(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_O_TIDS_DATA, sizeof(uint64_t), &addr_outIds);
+        ADMXRC3_Write(m_cardID, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_O_TIDS_DATA, sizeof(uint64_t), &addr_outIds);
         /// outInter base address - triangle intersection distance output
-        ADMXRC3_Write(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_O_TINTERSECTS_DATA, sizeof(uint64_t), &addr_outInter);
+        ADMXRC3_Write(m_cardID, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_O_TINTERSECTS_DATA, sizeof(uint64_t), &addr_outInter);
 
 
         /// FPGA Memory copy of the input arrays via DMA
@@ -288,52 +305,52 @@ public:
         ///---------------------------------------------------
 
         /// Writing tData
-        status = ADMXRC3_WriteDMA(hCard, 0, 0, tData, nTris * FPGA_TRI_ATTR_NUMBER * sizeof(double), addr_tris);
+        status = ADMXRC3_WriteDMA(m_cardID, 0, 0, tData, nTris * FPGA_TRI_ATTR_NUMBER * sizeof(double), addr_tris);
         if (status != ADMXRC3_SUCCESS) {
             fprintf(stderr,"Triangle data write DMA transfer failed: %s\n", ADMXRC3_GetStatusString(status, TRUE));
-            return -1;
+            exit(EXIT_FAILURE);
         }
 
         /// Writing idData
-        status = ADMXRC3_WriteDMA(hCard, 0, 0, idData, NUM_TRIS * sizeof(int), addr_ids);
+        status = ADMXRC3_WriteDMA(m_cardID, 0, 0, idData, NUM_TRIS * sizeof(int), addr_ids);
         if (status != ADMXRC3_SUCCESS) {
             fprintf(stderr,"Id data write DMA transfer failed: %s\n", ADMXRC3_GetStatusString(status, TRUE));
-            return -1;
+            exit(EXIT_FAILURE);
         }
 
 
         /// Writing rData
-        status = ADMXRC3_WriteDMA(hCard, 0, 0, rData, NUM_RAYS * RAY_SIZE * sizeof(double), addr_rays);
+        status = ADMXRC3_WriteDMA(m_cardID, 0, 0, rData, NUM_RAYS * RAY_SIZE * sizeof(double), addr_rays);
         if (status != ADMXRC3_SUCCESS) {
             fprintf(stderr,"Triangle data write DMA transfer failed: %s\n", ADMXRC3_GetStatusString(status, TRUE));
-            return -1;
+            exit(EXIT_FAILURE);
         }
         printf("write dma done!\n");
 
 
-        ADMXRC3_Read(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
+        ADMXRC3_Read(m_cardID, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
 
         if(ctrl == 4)
         {
                 printf("core is idle, ctrl = %ld\n",ctrl);
         }
 
-        ADMXRC3_Read(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
+        ADMXRC3_Read(m_cardID, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
 
         if(ctrl == 4)
         {
-            cout << "core is idle, ctrl = " << ctrl << "\n";
+            std::cout << "core is idle, ctrl = " << ctrl << "\n";
         }
 
         /// Write control value = 1 (start)
         ctrl = 1;
-        ADMXRC3_Write(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
+        ADMXRC3_Write(m_cardID, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
 
         /// Polling the FPGA for the results
-        ADMXRC3_Read(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
+        ADMXRC3_Read(m_cardID, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
         while(ctrl != 4)
         {
-            ADMXRC3_Read(hCard, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
+            ADMXRC3_Read(m_cardID, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
         }
         printf("done!\n");
 
@@ -341,17 +358,17 @@ public:
         /// Getting the result back from the FPGA
 
         /// Id of the triangles hit by the sent rays
-        status = ADMXRC3_ReadDMA(hCard, 0, 0, outIds, NUM_RAYS * sizeof(int), addr_outIds);
+        status = ADMXRC3_ReadDMA(m_cardID, 0, 0, outIds, NUM_RAYS * sizeof(int), addr_outIds);
         if (status != ADMXRC3_SUCCESS) {
             fprintf(stderr,"outIds read DMA transfer failed: %s\n", ADMXRC3_GetStatusString(status, TRUE));
-            return -1;
+            exit(EXIT_FAILURE);
         }
 
         /// Intersection parameter of where the triangle was hit
-        status = ADMXRC3_ReadDMA(hCard, 0, 0, outInter, NUM_RAYS * sizeof(double), addr_outInter);
+        status = ADMXRC3_ReadDMA(m_cardID, 0, 0, outInter, NUM_RAYS * sizeof(double), addr_outInter);
         if (status != ADMXRC3_SUCCESS) {
             fprintf(stderr,"outInter read DMA transfer failed: %s\n", ADMXRC3_GetStatusString(status, TRUE));
-            return -1;
+            exit(EXIT_FAILURE);
         }
 
         int r, c;
@@ -366,7 +383,7 @@ public:
 
             Intersection it;
 
-            Ray ray = cam.getRay(r, c);
+            Ray ray = m_session.camera->getRay(r, c);
 
             if(hitId != -1)
             {
@@ -381,26 +398,26 @@ public:
                 //Color lightInfluence = light->mColor * light->mIntensity;
                 //L = (matCol * matDif * INV_PI) * lightInfluence * dot;
 
-                it.normalVector = m->triangles[hitId]->normal;
+                it.normalVector = m_session.meshes[0].triangles[hitId]->normal;
                 it.hit = true;
                 it.rayDirection = wo;
                 it.t = outInter[rayId];
                 it.hitPoint = ray.rayPoint(it.t);
                 it.triangleId = hitId;
 
-                L = materialData[0]->shade(it, lights);
+                L = m_session.materials[0]->shade(it, m_session.lights);
             }
 
-            sess.frames[0].setPixel(c, r, L);
+            m_session.frames[0].setPixel(c, r, L);
 
         }
       
 
-        status = ADMXRC3_Close(hCard);
+        status = ADMXRC3_Close(m_cardID);
         if (status != ADMXRC3_SUCCESS) {
             fprintf(stderr,"Failed to close card with index %lu: %s\n", (unsigned long)index, ADMXRC3_GetStatusString(status, TRUE));
-            return -1;
-
+            exit(EXIT_FAILURE);
+        }
         delete[] rData;
         delete[] tData;
         delete[] idData;
