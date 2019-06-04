@@ -186,6 +186,27 @@ public:
                 << ": " << ADMXRC3_GetStatusString(status, TRUE) << "\n";
             exit(EXIT_FAILURE);
         }
+
+
+        for(int i = 0; i < 3; i++)
+        {
+
+            ADMXRC3_WINDOW_INFO windowInfo;
+            status = ADMXRC3_GetWindowInfo(
+                m_cardHandle,
+                i,
+                //m_deviceWindow,
+                &windowInfo
+            );
+
+            std::cout << "[info] : Memory window " << i << " information:\n"
+                << "\tBus Size: " << windowInfo.BusSize << " B\n"
+                << "\tBus Base: " << windowInfo.BusBase << " B\n"
+                << "\tLocal Size: " << windowInfo.LocalSize << " B\n"
+                << "\tLocal Base: " << windowInfo.LocalBase << " B\n"
+                << "\tVirtual Size: " << windowInfo.VirtualSize << " B\n"
+                << "\n";
+        }
     }
 
     int destroyFPGA()
@@ -199,6 +220,50 @@ public:
             exit(EXIT_FAILURE);
         }
     }
+
+
+    const unsigned int m_deviceWindow = 0;
+    const uint32_t FPGA_NO_FLAGS = 0;
+    uint64_t m_fpgaStatus;
+
+    void _updateStatusFPGA()
+    {
+        this->readFPGA(
+            XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL,
+            sizeof(uint64_t),
+            &m_fpgaStatus
+        );
+    }
+
+    void readFPGA(
+        size_t windowOffset, 
+        size_t length,
+        void* destinationBuffer)
+    {
+        ADMXRC3_Read(
+            m_cardHandle, 
+            m_deviceWindow, 
+            FPGA_NO_FLAGS, 
+            windowOffset, 
+            length, 
+            destinationBuffer
+        );
+    }
+
+    void writeFPGA(
+        size_t windowOffset, 
+        size_t length,
+        void* destinationBuffer
+    ) {
+        ADMXRC3_Write(
+            m_cardHandle, 
+            m_deviceWindow, 
+            FPGA_NO_FLAGS, 
+            windowOffset, 
+            length, 
+            destinationBuffer);
+    }
+
 
     virtual void render(int frame) {
 
@@ -280,7 +345,7 @@ public:
         uint64_t addr_rays = addr_ids + (sizeof(int) * FPGA_MAX_TRIS);
         uint64_t addr_outInter = addr_rays + (sizeof(double) * FPGA_MAX_RAYS * Ray::NUM_ATTRIBUTES);
         uint64_t addr_outIds = addr_outInter + (sizeof(double) * FPGA_MAX_RAYS);
-        uint64_t ctrl = 0;
+        //uint64_t m_fpgaStatus = 0;
 
         /// Opening FPGA card
         this->initFPGA();
@@ -288,27 +353,33 @@ public:
 
         /// Getting the status of the Accelerator by reading the CTRL address
         printf("IP Status:\n");
-        ADMXRC3_Read(m_cardHandle, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
-        printf("status 0x%lx\n",ctrl);
+
+
+        //ADMXRC3_Read(m_cardHandle, m_deviceWindow, FPGA_NO_FLAGS, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &m_fpgaStatus);
+        this->_updateStatusFPGA();
+        printf("status 0x%lx\n", m_fpgaStatus);
 
         /// Writing the new command (idle)
-        ADMXRC3_Write(m_cardHandle, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
+        this->writeFPGA(
+            XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, 
+            sizeof(uint64_t), 
+            &m_fpgaStatus);
 
         /// Writing to the input addresses
         /// Number of Triangles
-        ADMXRC3_Write(m_cardHandle, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_I_TNUMBER_DATA, sizeof(uint64_t), &nTris);
+        ADMXRC3_Write(m_cardHandle, m_deviceWindow, FPGA_NO_FLAGS, XINTERSECTFPGA_CONTROL_ADDR_I_TNUMBER_DATA, sizeof(uint64_t), &nTris);
         /// idData base address
-        ADMXRC3_Write(m_cardHandle, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_I_TIDS_DATA, sizeof(uint64_t), &addr_ids);
+        ADMXRC3_Write(m_cardHandle, m_deviceWindow, FPGA_NO_FLAGS, XINTERSECTFPGA_CONTROL_ADDR_I_TIDS_DATA, sizeof(uint64_t), &addr_ids);
         /// tData base address
-        ADMXRC3_Write(m_cardHandle, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_I_TDATA_DATA, sizeof(uint64_t), &addr_tris);
+        ADMXRC3_Write(m_cardHandle, m_deviceWindow, FPGA_NO_FLAGS, XINTERSECTFPGA_CONTROL_ADDR_I_TDATA_DATA, sizeof(uint64_t), &addr_tris);
         /// Number of Rays
-        ADMXRC3_Write(m_cardHandle, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_I_RNUMBER_DATA, sizeof(uint64_t), &nRays);
+        ADMXRC3_Write(m_cardHandle, m_deviceWindow, FPGA_NO_FLAGS, XINTERSECTFPGA_CONTROL_ADDR_I_RNUMBER_DATA, sizeof(uint64_t), &nRays);
         /// rData base address
-        ADMXRC3_Write(m_cardHandle, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_I_RDATA_DATA, sizeof(uint64_t), &addr_rays);
+        ADMXRC3_Write(m_cardHandle, m_deviceWindow, FPGA_NO_FLAGS, XINTERSECTFPGA_CONTROL_ADDR_I_RDATA_DATA, sizeof(uint64_t), &addr_rays);
         /// outIds base address - triangle id output
-        ADMXRC3_Write(m_cardHandle, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_O_TIDS_DATA, sizeof(uint64_t), &addr_outIds);
+        ADMXRC3_Write(m_cardHandle, m_deviceWindow, FPGA_NO_FLAGS, XINTERSECTFPGA_CONTROL_ADDR_O_TIDS_DATA, sizeof(uint64_t), &addr_outIds);
         /// outInter base address - triangle intersection distance output
-        ADMXRC3_Write(m_cardHandle, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_O_TINTERSECTS_DATA, sizeof(uint64_t), &addr_outInter);
+        ADMXRC3_Write(m_cardHandle, m_deviceWindow, FPGA_NO_FLAGS, XINTERSECTFPGA_CONTROL_ADDR_O_TINTERSECTS_DATA, sizeof(uint64_t), &addr_outInter);
 
 
         /// FPGA Memory copy of the input arrays via DMA
@@ -340,31 +411,23 @@ public:
         printf("write dma done!\n");
 
 
-        ADMXRC3_Read(m_cardHandle, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
+        this->_updateStatusFPGA();
 
-        if(ctrl == 4)
+        if(m_fpgaStatus == 4)
         {
-                printf("core is idle, ctrl = %ld\n",ctrl);
-        }
-
-        ADMXRC3_Read(m_cardHandle, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
-
-        if(ctrl == 4)
-        {
-            std::cout << "core is idle, ctrl = " << ctrl << "\n";
+            std::cout << "core is idle, m_fpgaStatus = " << m_fpgaStatus << "\n";
         }
 
         /// Write control value = 1 (start)
-        ctrl = 1;
-        ADMXRC3_Write(m_cardHandle, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
+        m_fpgaStatus = 1;
+        ADMXRC3_Write(m_cardHandle, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &m_fpgaStatus);
 
         /// Polling the FPGA for the results
-        ADMXRC3_Read(m_cardHandle, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
-        while(ctrl != 4)
-        {
-            ADMXRC3_Read(m_cardHandle, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &ctrl);
-        }
-        printf("done!\n");
+        do {
+            this->_updateStatusFPGA();
+        } while(m_fpgaStatus != 4);
+
+        std::cout << "[info] : done!\n";
 
 
         /// Getting the result back from the FPGA
