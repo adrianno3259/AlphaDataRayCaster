@@ -16,6 +16,7 @@
 #include "Light.h"
 #include "Ray.h"
 #include "material/Material.h"
+#include "Chrono.h"
 
 #include "Constants.h"
 
@@ -119,6 +120,7 @@ public:
 };
 
 #ifdef FPGA
+
 class FPGATracer : public Tracer
 {
 
@@ -164,9 +166,17 @@ class FPGATracer : public Tracer
 public:
     FPGATracer(Application::Session& sess) :
         Tracer(sess),
-        m_cardHandle (ADMXRC3_HANDLE_INVALID_VALUE)
-        {}
+        m_cardHandle (ADMXRC3_HANDLE_INVALID_VALUE),
+        m_chronometer(Chrono(std::cout))
+        {
+            addr_tris = 0;
+            addr_ids = sizeof(double) * FPGA_MAX_TRIS * FPGA_TRI_ATTR_NUMBER;
+            addr_rays = addr_ids + (sizeof(int) * FPGA_MAX_TRIS);
+            addr_outInter = addr_rays + (sizeof(double) * FPGA_MAX_RAYS * FPGA_RAY_ATTR_NUMBER);
+            addr_outIds = addr_outInter + (sizeof(double) * FPGA_MAX_RAYS);
+        }
 
+    Chrono m_chronometer;
     const unsigned int FPGA_CARD_ID = 0;
     ADMXRC3_HANDLE m_cardHandle;
     int m_numberOfRays;
@@ -222,8 +232,12 @@ public:
     }
 
 
-    const unsigned int m_deviceWindow = 0;
+    const uint64_t FPGA_RUNNING = 1;
+    const uint64_t FPGA_IDLE    = 4;
     const uint32_t FPGA_NO_FLAGS = 0;
+    
+    unsigned int m_deviceWindow = 0;
+    unsigned int m_dmaChannel = 0;
     uint64_t m_fpgaStatus;
 
     void _updateStatusFPGA()
@@ -264,32 +278,114 @@ public:
             destinationBuffer);
     }
 
-    //void writeDMA(
-    //    )
-    //{
-    //    status = ADMXRC3_WriteDMA(m_cardHandle, 0, 0, tData, nTris * FPGA_TRI_ATTR_NUMBER * sizeof(double), addr_tris);
-    //    if (status != ADMXRC3_SUCCESS) {
-    //        fprintf(stderr,"Triangle data write DMA transfer failed: %s\n", ADMXRC3_GetStatusString(status, TRUE));
-    //        exit(EXIT_FAILURE);
-    //    }
-    //}
+    void writeDMA(
+        void* addrFromCPU,
+        size_t dataLength,
+        uint64_t addrToFPGA
+        )
+    {
+        ADMXRC3_STATUS status = 
+            ADMXRC3_WriteDMA(
+                m_cardHandle, 
+                m_dmaChannel, 
+                FPGA_NO_FLAGS, 
+                addrFromCPU, 
+                dataLength, 
+                addrToFPGA
+            );
+
+        if (status != ADMXRC3_SUCCESS) 
+        {
+            std::cerr 
+                << "Failed to write to the DMA channel " << m_dmaChannel 
+                << " of card " << (unsigned long) FPGA_CARD_ID
+                << ": " << ADMXRC3_GetStatusString(status, TRUE) << "\n";
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    void readDMA(
+        void* addrToCPU,
+        size_t dataLength,
+        uint64_t addrFromFPGA
+    ) {
+
+        ADMXRC3_STATUS status = 
+            ADMXRC3_ReadDMA(
+                m_cardHandle, 
+                m_dmaChannel, 
+                FPGA_NO_FLAGS, 
+                addrToCPU, 
+                dataLength, 
+                addrFromFPGA
+            );
+
+        if (status != ADMXRC3_SUCCESS) 
+        {
+            std::cerr 
+                << "Failed to read the DMA channel " << m_dmaChannel 
+                << " of card " << (unsigned long) FPGA_CARD_ID
+                << ": " << ADMXRC3_GetStatusString(status, TRUE) << "\n";
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    const int FPGA_TRI_ATTR_NUMBER = 9;
+    const int FPGA_RAY_ATTR_NUMBER = 6;
+
+    const int FPGA_MAX_TRIS = 50000;
+    const int FPGA_MAX_RAYS = 921600;
+
+    /// Declaring the base addresses of the arrays in the
+    /// FPGA DDR memory
+    uint64_t addr_tris;
+    uint64_t addr_ids;
+    uint64_t addr_rays;
+    uint64_t addr_outInter;
+    uint64_t addr_outIds;
+
+    
+
+    void offloadGeometry(const Mesh& mesh)
+    {
+        int nTris = mesh.triangles.size();
+
+        double* tData = new double[nTris * FPGA_TRI_ATTR_NUMBER];
+        int* idData = new int[nTris];
+        
+        prepareTriangles(tData, idData, mesh);
+
+        /// Writing tData
+        m_chronometer.start();
+        this->writeDMA(tData, nTris * FPGA_TRI_ATTR_NUMBER * sizeof(double), addr_tris);
+        m_chronometer.stop("Write triangles to DMA");
+        
+        /// Writing idData
+        m_chronometer.start();
+        this->writeDMA(idData, nTris * sizeof(int), addr_ids);
+        m_chronometer.stop("Write triangles IDs to DMA");
+
+        delete[] tData;
+        delete[] idData;
+    }
 
     virtual void render(int frame) {
 
+        /// Opening FPGA card
+        this->initFPGA();
+        
+
         int hres = m_session.camera->getHorizontalResolution();
         int vres = m_session.camera->getVerticalResolution();
+        m_numberOfRays = vres * hres;
 
         /// Initializing the basic information of the raytracing session
-        m_numberOfRays = vres * hres;
         int nRays = vres * hres, 
             nTris = m_session.meshes[0].triangles.size();
 
-        const int FPGA_TRI_ATTR_NUMBER = 9;
 
-        const int FPGA_MAX_TRIS = 50000;
-        const int FPGA_MAX_RAYS = 921600;
+        this->offloadGeometry(m_session.meshes[0]);
 
-        ADMXRC3_STATUS status;
 
         uint64_t NUM_RAYS = nRays;
         uint64_t RAY_SIZE = 6;
@@ -298,73 +394,18 @@ public:
         uint64_t NUM_TRIS = nTris;
         uint64_t TRI_SIZE = 9;
         uint64_t MAX_TRIS = 50000;
-
-        double *rData = nullptr, *tData = nullptr, *outInter = nullptr;
-        int *idData = nullptr, *outIds = nullptr;
-
-        /// allocating the memory needed
-        try
-        {
-            rData = new double[nRays * Ray::NUM_ATTRIBUTES];
-            tData = new double[nTris * FPGA_TRI_ATTR_NUMBER];
-            idData = new int[nTris];
-            outIds = new int[nRays];
-            outInter = new double[nRays];
-        }
-        catch(const std::bad_alloc& al)
-        {
-            if(rData != nullptr)
-            {
-                delete[] rData;
-            }
-
-            if(tData != nullptr)
-            {
-                delete[] tData;
-            }
-            
-            if(idData != nullptr)
-            {
-                delete[] idData;
-            }
-            
-            if(outIds != nullptr)
-            {
-                delete[] outIds;
-            }
-            
-            if(outInter != nullptr)
-            {
-                delete[] outInter;
-            }
-
-            std::cerr << "It wasn't possible to alloc a memory of this size...\nMessage: ";
-            std::cerr << al.what() << "\n";
-            exit(EXIT_FAILURE);
-        }
-
+    
+        double *rData = new double[nRays * Ray::NUM_ATTRIBUTES];
+        int *outIds = new int[nRays];
+        double *outInter = new double[nRays];
+    
         /// preparing data structures to send to the FPGA
         prepareRays(rData, *m_session.camera);
-        prepareTriangles(tData, idData, m_session.meshes[0]);
-
-        /// Declaring the base addresses of the arrays in the
-        /// FPGA DDR memory
-        uint64_t addr_tris = 0;
-        uint64_t addr_ids = sizeof(double) * FPGA_MAX_TRIS * TRI_SIZE;
-        uint64_t addr_rays = addr_ids + (sizeof(int) * FPGA_MAX_TRIS);
-        uint64_t addr_outInter = addr_rays + (sizeof(double) * FPGA_MAX_RAYS * Ray::NUM_ATTRIBUTES);
-        uint64_t addr_outIds = addr_outInter + (sizeof(double) * FPGA_MAX_RAYS);
-        //uint64_t m_fpgaStatus = 0;
-
-        /// Opening FPGA card
-        this->initFPGA();
-
+        
 
         /// Getting the status of the Accelerator by reading the CTRL address
-        printf("IP Status:\n");
-        //ADMXRC3_Read(m_cardHandle, m_deviceWindow, FPGA_NO_FLAGS, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &m_fpgaStatus);
         this->_updateStatusFPGA();
-        printf("status 0x%lx\n", m_fpgaStatus);
+        std::cout << "[info] : FPGA status = "<<  m_fpgaStatus << "\n";
 
         /// Writing the new command (idle)
         this->writeFPGA(
@@ -421,45 +462,32 @@ public:
         ///---------------------dma writes--------------------
         ///---------------------------------------------------
 
-        /// Writing tData
-        status = ADMXRC3_WriteDMA(m_cardHandle, 0, 0, tData, nTris * FPGA_TRI_ATTR_NUMBER * sizeof(double), addr_tris);
-        if (status != ADMXRC3_SUCCESS) {
-            fprintf(stderr,"Triangle data write DMA transfer failed: %s\n", ADMXRC3_GetStatusString(status, TRUE));
-            exit(EXIT_FAILURE);
-        }
-
-        /// Writing idData
-        status = ADMXRC3_WriteDMA(m_cardHandle, 0, 0, idData, NUM_TRIS * sizeof(int), addr_ids);
-        if (status != ADMXRC3_SUCCESS) {
-            fprintf(stderr,"Id data write DMA transfer failed: %s\n", ADMXRC3_GetStatusString(status, TRUE));
-            exit(EXIT_FAILURE);
-        }
-
-
         /// Writing rData
-        status = ADMXRC3_WriteDMA(m_cardHandle, 0, 0, rData, NUM_RAYS * RAY_SIZE * sizeof(double), addr_rays);
-        if (status != ADMXRC3_SUCCESS) {
-            fprintf(stderr,"Triangle data write DMA transfer failed: %s\n", ADMXRC3_GetStatusString(status, TRUE));
-            exit(EXIT_FAILURE);
-        }
-        printf("write dma done!\n");
-
+        m_chronometer.start();
+        this->writeDMA(rData, NUM_RAYS * RAY_SIZE * sizeof(double), addr_rays);
+        m_chronometer.stop("Writing Rays to DMA");
+        std::cout << "[info] : Finished writing input to DMA\n";
 
         this->_updateStatusFPGA();
 
-        if(m_fpgaStatus == 4)
+        if(m_fpgaStatus == FPGA_IDLE)
         {
             std::cout << "core is idle, m_fpgaStatus = " << m_fpgaStatus << "\n";
         }
 
         /// Write control value = 1 (start)
-        m_fpgaStatus = 1;
-        ADMXRC3_Write(m_cardHandle, 0, 0, XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, sizeof(uint64_t), &m_fpgaStatus);
+        m_fpgaStatus = FPGA_RUNNING;
+        
+        this->writeFPGA(
+            XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, 
+            sizeof(uint64_t), 
+            &m_fpgaStatus
+        );
 
         /// Polling the FPGA for the results
         do {
             this->_updateStatusFPGA();
-        } while(m_fpgaStatus != 4);
+        } while(m_fpgaStatus != FPGA_IDLE);
 
         std::cout << "[info] : done!\n";
 
@@ -467,22 +495,15 @@ public:
         /// Getting the result back from the FPGA
 
         /// Id of the triangles hit by the sent rays
-        status = ADMXRC3_ReadDMA(m_cardHandle, 0, 0, outIds, NUM_RAYS * sizeof(int), addr_outIds);
-        if (status != ADMXRC3_SUCCESS) {
-            fprintf(stderr,"outIds read DMA transfer failed: %s\n", ADMXRC3_GetStatusString(status, TRUE));
-            exit(EXIT_FAILURE);
-        }
-
+        this->readDMA(outIds, NUM_RAYS * sizeof(int), addr_outIds);
+        
         /// Intersection parameter of where the triangle was hit
-        status = ADMXRC3_ReadDMA(m_cardHandle, 0, 0, outInter, NUM_RAYS * sizeof(double), addr_outInter);
-        if (status != ADMXRC3_SUCCESS) {
-            fprintf(stderr,"outInter read DMA transfer failed: %s\n", ADMXRC3_GetStatusString(status, TRUE));
-            exit(EXIT_FAILURE);
-        }
+        this->readDMA(outInter, NUM_RAYS * sizeof(double), addr_outInter);
 
-        int r, c;
-        for(r = 0; r < vres; r++)
-        for(c = 0; c < hres; c++)
+
+        // Shading the results
+        for(int r = 0; r < vres; r++)
+        for(int c = 0; c < hres; c++)
         {
             Color L;
             /// Identifier of the ray that was sent to the FPGA
@@ -526,8 +547,6 @@ public:
         this->destroyFPGA();
 
         delete[] rData;
-        delete[] tData;
-        delete[] idData;
         delete[] outIds;
         delete[] outInter;
     }
