@@ -26,7 +26,7 @@ int main(int argc, char** argv){
     }
     else
     {
-        #ifdef FPGA
+        #ifdef USE_FPGA
 
         tracer = std::make_shared<FPGATracer>(sess);
         

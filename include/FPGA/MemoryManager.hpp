@@ -1,5 +1,5 @@
-#ifdef FPGA
-#ifdef _MEMORY_MANAGER_H_
+#ifdef USE_FPGA
+#ifndef _MEMORY_MANAGER_H_
 #define _MEMORY_MANAGER_H_
 
 
@@ -8,6 +8,21 @@
 namespace FPGA{
 
 	typedef uint64_t fpgaPtr_t;
+
+	class bad_alloc : public std::exception
+	{
+		std::string m_message;
+	public:
+		bad_alloc(const std::string& msg) : 
+			m_message(msg)
+			{}
+
+		const char* what() const noexcept {
+			return m_message.c_str();
+		}
+
+	};
+
 
 	namespace internal {
 
@@ -59,7 +74,7 @@ namespace FPGA{
 						if(block.length == length)
 						{
 							block.isFree = false;
-							return block.m_baseAddr;
+							return block.baseAddr;
 						}
 						else if(block.length > length)
 						{
@@ -82,7 +97,7 @@ namespace FPGA{
 					}
 				} // for m_memoryBlocks
 
-				throw new std::bad_alloc("No memory available to alloc");
+				throw new bad_alloc("No memory available to alloc");
 			}
 
 			
@@ -96,11 +111,10 @@ namespace FPGA{
 					if(addr == blockIt->baseAddr)
 					{
 						auto other = std::next(blockIt);
-						bool canRemove = false;
 
-						if(next != end && next->isFree)
+						if(other != end && other->isFree)
 						{
-							next->length += blockIt->length;
+							other->length += blockIt->length;
 							m_memoryBlocks.erase(blockIt);
 						}
 						else if(blockIt != begin && (other = std::prev(blockIt))->isFree)

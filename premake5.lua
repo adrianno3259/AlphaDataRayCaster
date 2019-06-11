@@ -22,7 +22,7 @@ project "DarkRenderer"
         optimize "On"
 
     filter "configurations:FPGA"
-        defines { "FPGA" }
+        defines { "USE_FPGA" }
         linkoptions { "-ladmxrc3", "-lc" }
         includedirs {"/home/fpgadev/Documents/Adrianno/AlphaData/adb3_drv-1.4.18/include"}
         optimize "On"

@@ -1,11 +1,11 @@
-#ifdef FPGA
+#ifdef USE_FPGA
 
-#ifdef _FPGA_H_
+#ifndef _FPGA_H_
 #define _FPGA_H_
 
 #include "admxrc3.h"
 
-##include "Application/Internal/MemoryManager.hpp"
+#include "FPGA/MemoryManager.hpp"
 
 namespace FPGA
 {
@@ -18,14 +18,16 @@ namespace FPGA
 			unsigned int memoryWindow) :
 		        m_cardHandle (ADMXRC3_HANDLE_INVALID_VALUE),
 		        m_cardID(cardID),
-		        m_chronometer(Chrono(std::cout)),
 				m_deviceWindow(memoryWindow),
-		    	m_dmaChannel(0)
+        		m_chronometer(Chrono(std::cout)),
+		    	m_dmaChannel(0),
+		    	m_memoryManager(internal::MemoryManager(1024 * 1024 * 1024))
         { 
         	this->init();
+        	//m_memoryManager = ;
         }
 
-        ~FPGA(unsigned int cardID)
+        ~FPGA()
         {
         	this->destroy();
         }
@@ -34,16 +36,16 @@ namespace FPGA
 	    Chrono m_chronometer;
 	    ADMXRC3_HANDLE m_cardHandle;
 
-	    FPGA::internal::MemoryManager m_memoryManager;
+	    internal::MemoryManager m_memoryManager;
 
 	    const static uint64_t FPGA_START = 1;
 	    const static uint64_t FPGA_IDLE    = 4;
+
 	    const static uint32_t FPGA_NO_FLAGS = 0;
 
 	    unsigned int m_cardID;
 	    unsigned int m_deviceWindow;
 	    unsigned int m_dmaChannel;
-	    uint64_t m_status;
 
 	    /** Initialize FPGA information and get card handler
 	    */
@@ -94,16 +96,6 @@ namespace FPGA
 	    }
 
 	    
-	    uint64_t getStatus()
-	    {
-	        this->readFPGA(
-	            XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL,
-	            sizeof(uint64_t),
-	            &m_status
-	        );
-	        return m_status;
-	    }
-
 	    void read(
 	        size_t windowOffset, 
 	        size_t length,
@@ -184,7 +176,16 @@ namespace FPGA
 	        }
 	    }
 
-		/* data */
+	    fpgaPtr_t alloc(size_t length)
+	    {
+	    	return m_memoryManager.alloc(length);
+	    }
+
+	    void free(fpgaPtr_t addr)
+	    {
+	    	m_memoryManager.free(addr);
+	    }
+
 	};
 }
 

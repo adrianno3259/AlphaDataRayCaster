@@ -20,7 +20,7 @@
 
 #include "Constants.h"
 
-#ifdef FPGA
+#ifdef USE_FPGA
 #   include "admxrc3.h"
 #	define TRUE (0==0)
 #	define FALSE (0==1)
@@ -119,7 +119,10 @@ public:
     }
 };
 
-#ifdef FPGA
+#ifdef USE_FPGA
+
+#include "FPGA/FPGA.hpp"
+#include "FPGA/XIntersectFPGA.hpp"
 
 class FPGATracer : public Tracer
 {
@@ -167,15 +170,24 @@ public:
     FPGATracer(Application::Session& sess) :
         Tracer(sess),
         m_cardHandle (ADMXRC3_HANDLE_INVALID_VALUE),
-        m_chronometer(Chrono(std::cout))
+        m_chronometer(Chrono(std::cout)),
+        m_fpga(FPGA::FPGA(0, 0))
         {
             addr_tris = 0;
             addr_ids = sizeof(double) * FPGA_MAX_TRIS * FPGA_TRI_ATTR_NUMBER;
             addr_rays = addr_ids + (sizeof(int) * FPGA_MAX_TRIS);
             addr_outInter = addr_rays + (sizeof(double) * FPGA_MAX_RAYS * FPGA_RAY_ATTR_NUMBER);
             addr_outIds = addr_outInter + (sizeof(double) * FPGA_MAX_RAYS);
+
         }
 
+
+    /** FPGA manager instance
+    */
+    FPGA::FPGA m_fpga;
+
+    /** Local chronometer
+    */
     Chrono m_chronometer;
     const unsigned int FPGA_CARD_ID = 0;
     ADMXRC3_HANDLE m_cardHandle;
@@ -242,7 +254,7 @@ public:
 
     void _updateStatusFPGA()
     {
-        this->readFPGA(
+        m_fpga.read(
             XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL,
             sizeof(uint64_t),
             &m_fpgaStatus
@@ -254,10 +266,7 @@ public:
         size_t length,
         void* destinationBuffer)
     {
-        ADMXRC3_Read(
-            m_cardHandle, 
-            m_deviceWindow, 
-            FPGA_NO_FLAGS, 
+        m_fpga.read(
             windowOffset, 
             length, 
             destinationBuffer
@@ -269,10 +278,7 @@ public:
         size_t length,
         void* destinationBuffer
     ) {
-        ADMXRC3_Write(
-            m_cardHandle, 
-            m_deviceWindow, 
-            FPGA_NO_FLAGS, 
+        m_fpga.write(
             windowOffset, 
             length, 
             destinationBuffer);
@@ -284,24 +290,11 @@ public:
         uint64_t addrToFPGA
         )
     {
-        ADMXRC3_STATUS status = 
-            ADMXRC3_WriteDMA(
-                m_cardHandle, 
-                m_dmaChannel, 
-                FPGA_NO_FLAGS, 
-                addrFromCPU, 
-                dataLength, 
-                addrToFPGA
-            );
-
-        if (status != ADMXRC3_SUCCESS) 
-        {
-            std::cerr 
-                << "Failed to write to the DMA channel " << m_dmaChannel 
-                << " of card " << (unsigned long) FPGA_CARD_ID
-                << ": " << ADMXRC3_GetStatusString(status, TRUE) << "\n";
-            exit(EXIT_FAILURE);
-        }
+        m_fpga.writeDMA(
+            addrFromCPU, 
+            dataLength, 
+            addrToFPGA
+        );
     }
 
     void readDMA(
@@ -310,24 +303,11 @@ public:
         uint64_t addrFromFPGA
     ) {
 
-        ADMXRC3_STATUS status = 
-            ADMXRC3_ReadDMA(
-                m_cardHandle, 
-                m_dmaChannel, 
-                FPGA_NO_FLAGS, 
-                addrToCPU, 
-                dataLength, 
-                addrFromFPGA
-            );
-
-        if (status != ADMXRC3_SUCCESS) 
-        {
-            std::cerr 
-                << "Failed to read the DMA channel " << m_dmaChannel 
-                << " of card " << (unsigned long) FPGA_CARD_ID
-                << ": " << ADMXRC3_GetStatusString(status, TRUE) << "\n";
-            exit(EXIT_FAILURE);
-        }
+        m_fpga.readDMA(
+            addrToCPU, 
+            dataLength, 
+            addrFromFPGA
+        );
     }
 
     const int FPGA_TRI_ATTR_NUMBER = 9;
@@ -372,7 +352,7 @@ public:
     virtual void render(int frame) {
 
         /// Opening FPGA card
-        this->initFPGA();
+        //this->initFPGA();
         
 
         int hres = m_session.camera->getHorizontalResolution();
@@ -384,7 +364,7 @@ public:
             nTris = m_session.meshes[0].triangles.size();
 
 
-        this->offloadGeometry(m_session.meshes[0]);
+        //this->offloadGeometry(m_session.meshes[0]);
 
 
         uint64_t NUM_RAYS = nRays;
@@ -396,66 +376,28 @@ public:
         uint64_t MAX_TRIS = 50000;
     
         double *rData = new double[nRays * Ray::NUM_ATTRIBUTES];
-        int *outIds = new int[nRays];
-        double *outInter = new double[nRays];
     
         /// preparing data structures to send to the FPGA
         prepareRays(rData, *m_session.camera);
         
-
         /// Getting the status of the Accelerator by reading the CTRL address
         this->_updateStatusFPGA();
         std::cout << "[info] : FPGA status = "<<  m_fpgaStatus << "\n";
 
-        /// Writing the new command (idle)
-        this->writeFPGA(
-            XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, 
-            sizeof(uint64_t), 
-            &m_fpgaStatus);
+        XIntersectFPGA accel(m_fpga);
+        
+        accel.setTriangleNumber(nTris);
+        accel.setTriangleIdsAddr(addr_ids);
+        accel.setTrianglesAddr(addr_ids);
 
-        /// Writing to the input addresses
-        /// Number of Triangles
-        this->writeFPGA(
-            XINTERSECTFPGA_CONTROL_ADDR_I_TNUMBER_DATA,
-            sizeof(uint64_t), 
-            &nTris);
+        accel.setRayNumber(nRays);
+        accel.setRaysAddr(addr_rays);
 
-        /// idData base address
-        this->writeFPGA(
-            XINTERSECTFPGA_CONTROL_ADDR_I_TIDS_DATA, 
-            sizeof(uint64_t), 
-            &addr_ids);
+        accel.setOutputIdsAddr(addr_outIds);
+        accel.setOutputIntersectsAddr(addr_outInter);
 
-        /// tData base address
-        this->writeFPGA(
-            XINTERSECTFPGA_CONTROL_ADDR_I_TDATA_DATA, 
-            sizeof(uint64_t), 
-            &addr_tris);
-
-        /// Number of Rays
-        this->writeFPGA(
-            XINTERSECTFPGA_CONTROL_ADDR_I_RNUMBER_DATA, 
-            sizeof(uint64_t), 
-            &nRays);
-
-        /// rData base address
-        this->writeFPGA(
-            XINTERSECTFPGA_CONTROL_ADDR_I_RDATA_DATA, 
-            sizeof(uint64_t), 
-            &addr_rays);
-
-        /// outIds base address - triangle id output
-        this->writeFPGA(
-            XINTERSECTFPGA_CONTROL_ADDR_O_TIDS_DATA, 
-            sizeof(uint64_t), 
-            &addr_outIds);
-
-        /// outInter base address - triangle intersection distance output
-        this->writeFPGA(
-            XINTERSECTFPGA_CONTROL_ADDR_O_TINTERSECTS_DATA, 
-            sizeof(uint64_t), 
-            &addr_outInter);
-
+        accel.offloadGeometry(m_session.meshes[0]);
+        accel.offloadPrimaryRays(*m_session.camera);
 
         /// FPGA Memory copy of the input arrays via DMA
         ///---------------------------------------------------
@@ -463,36 +405,39 @@ public:
         ///---------------------------------------------------
 
         /// Writing rData
-        m_chronometer.start();
-        this->writeDMA(rData, NUM_RAYS * RAY_SIZE * sizeof(double), addr_rays);
-        m_chronometer.stop("Writing Rays to DMA");
-        std::cout << "[info] : Finished writing input to DMA\n";
+        //m_chronometer.start();
+        //this->writeDMA(rData, NUM_RAYS * RAY_SIZE * sizeof(double), addr_rays);
+        //m_chronometer.stop("Writing Rays to DMA");
+        //std::cout << "[info] : Finished writing input to DMA\n";
 
-        this->_updateStatusFPGA();
+        //this->_updateStatusFPGA();
 
-        if(m_fpgaStatus == FPGA_IDLE)
-        {
-            std::cout << "core is idle, m_fpgaStatus = " << m_fpgaStatus << "\n";
-        }
+        //if(m_fpgaStatus == FPGA_IDLE)
+        //{
+        //    std::cout << "core is idle, m_fpgaStatus = " << m_fpgaStatus << "\n";
+        //}
 
         /// Write control value = 1 (start)
-        m_fpgaStatus = FPGA_RUNNING;
-        
-        this->writeFPGA(
-            XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, 
-            sizeof(uint64_t), 
-            &m_fpgaStatus
-        );
-
+        //m_fpgaStatus = FPGA_RUNNING;
+        //
+        //this->writeFPGA(
+        //    XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, 
+        //    sizeof(uint64_t), 
+        //    &m_fpgaStatus
+        //);
         /// Polling the FPGA for the results
-        do {
-            this->_updateStatusFPGA();
-        } while(m_fpgaStatus != FPGA_IDLE);
+        //do {
+        //    this->_updateStatusFPGA();
+        //} while(m_fpgaStatus != FPGA_IDLE);
+        accel.start();
+        while(accel.isRunning());
 
         std::cout << "[info] : done!\n";
 
 
         /// Getting the result back from the FPGA
+        int *outIds = new int[nRays];
+        double *outInter = new double[nRays];
 
         /// Id of the triangles hit by the sent rays
         this->readDMA(outIds, NUM_RAYS * sizeof(int), addr_outIds);
@@ -500,6 +445,11 @@ public:
         /// Intersection parameter of where the triangle was hit
         this->readDMA(outInter, NUM_RAYS * sizeof(double), addr_outInter);
 
+        //std::vector<int> outIds;
+        //std::vector<double> outInter;
+        //accel.getResults(outIds, outInter);
+
+        std::fstream file("results_branch.txt", std::fstream::out);
 
         // Shading the results
         for(int r = 0; r < vres; r++)
@@ -513,16 +463,24 @@ public:
 
             Intersection it;
 
+            file 
+                << outIds[rayId]
+                << " " 
+                << outInter[rayId]
+                << "\n"
+            ;
+
             Ray ray = m_session.camera->getRay(r, c);
 
             if(hitId != -1)
             {
-                Vec3d wo =
-                    Vec3d(
-                        rData[rayId * Ray::NUM_ATTRIBUTES + 3],
-                        rData[rayId * Ray::NUM_ATTRIBUTES + 4],
-                        rData[rayId * Ray::NUM_ATTRIBUTES + 5]
-                    );// -ray.direction;
+                //auto ray = m_session.camera.getRay(r, c);
+                //Vec3d wo = ray.direction;
+                Vec3d wo = Vec3d(
+                        rData[Ray::NUM_ATTRIBUTES * rayId + 3],
+                        rData[Ray::NUM_ATTRIBUTES * rayId + 4],
+                        rData[Ray::NUM_ATTRIBUTES * rayId + 5]                    
+                    );
 
                 //double dot = m->triangles[hitId]->normal * wo;
                 //Color lightInfluence = light->mColor * light->mIntensity;
@@ -544,11 +502,11 @@ public:
       
 
         
-        this->destroyFPGA();
+        //this->destroyFPGA();
 
-        delete[] rData;
-        delete[] outIds;
-        delete[] outInter;
+        //delete[] rData;
+        //delete[] outIds;
+        //delete[] outInter;
     }
 
 };
