@@ -28,25 +28,79 @@
 #   define XINTERSECTFPGA_CONTROL_ADDR_GIE                0x04
 #   define XINTERSECTFPGA_CONTROL_ADDR_IER                0x08
 #   define XINTERSECTFPGA_CONTROL_ADDR_ISR                0x0c
+
+//#   define XINTERSECTFPGA_CONTROL_ADDR_I_TNUMBER_DATA     0x10
+//#   define XINTERSECTFPGA_CONTROL_BITS_I_TNUMBER_DATA     32
+//#   define XINTERSECTFPGA_CONTROL_ADDR_I_TDATA_DATA       0x18
+//#   define XINTERSECTFPGA_CONTROL_BITS_I_TDATA_DATA       32
+//#   define XINTERSECTFPGA_CONTROL_ADDR_I_TIDS_DATA        0x20
+//#   define XINTERSECTFPGA_CONTROL_BITS_I_TIDS_DATA        32
+//#   define XINTERSECTFPGA_CONTROL_ADDR_I_RNUMBER_DATA     0x28
+//#   define XINTERSECTFPGA_CONTROL_BITS_I_RNUMBER_DATA     32
+//#   define XINTERSECTFPGA_CONTROL_ADDR_I_RDATA_DATA       0x30
+//#   define XINTERSECTFPGA_CONTROL_BITS_I_RDATA_DATA       32
+//#   define XINTERSECTFPGA_CONTROL_ADDR_O_TIDS_DATA        0x38
+//#   define XINTERSECTFPGA_CONTROL_BITS_O_TIDS_DATA        32
+//#   define XINTERSECTFPGA_CONTROL_ADDR_O_TINTERSECTS_DATA 0x40
+//#   define XINTERSECTFPGA_CONTROL_BITS_O_TINTERSECTS_DATA 32
+
 #   define XINTERSECTFPGA_CONTROL_ADDR_I_TNUMBER_DATA     0x10
 #   define XINTERSECTFPGA_CONTROL_BITS_I_TNUMBER_DATA     32
 #   define XINTERSECTFPGA_CONTROL_ADDR_I_TDATA_DATA       0x18
 #   define XINTERSECTFPGA_CONTROL_BITS_I_TDATA_DATA       32
-#   define XINTERSECTFPGA_CONTROL_ADDR_I_TIDS_DATA        0x20
-#   define XINTERSECTFPGA_CONTROL_BITS_I_TIDS_DATA        32
-#   define XINTERSECTFPGA_CONTROL_ADDR_I_RNUMBER_DATA     0x28
+#   define XINTERSECTFPGA_CONTROL_ADDR_I_RNUMBER_DATA     0x20
 #   define XINTERSECTFPGA_CONTROL_BITS_I_RNUMBER_DATA     32
-#   define XINTERSECTFPGA_CONTROL_ADDR_I_RDATA_DATA       0x30
+#   define XINTERSECTFPGA_CONTROL_ADDR_I_RDATA_DATA       0x28
 #   define XINTERSECTFPGA_CONTROL_BITS_I_RDATA_DATA       32
-#   define XINTERSECTFPGA_CONTROL_ADDR_O_TIDS_DATA        0x38
+#   define XINTERSECTFPGA_CONTROL_ADDR_O_TIDS_DATA        0x30
 #   define XINTERSECTFPGA_CONTROL_BITS_O_TIDS_DATA        32
-#   define XINTERSECTFPGA_CONTROL_ADDR_O_TINTERSECTS_DATA 0x40
+#   define XINTERSECTFPGA_CONTROL_ADDR_O_TINTERSECTS_DATA 0x38
 #   define XINTERSECTFPGA_CONTROL_BITS_O_TINTERSECTS_DATA 32
 #endif
 
 class Tracer{
 protected:
     Application::Session& m_session;
+
+    void saveRays(const Camera& cam)
+    {
+        std::fstream outFile("ray_input.in", std::fstream::out);
+        int hres = cam.getHorizontalResolution();
+        int vres = cam.getVerticalResolution();
+        for(int r = 0; r < vres; r++)
+        {
+            for(int c = 0, base; c < hres; c++, base += 6)
+            {
+                auto&& ray = cam.getRay(r, c);
+                outFile << ray.origin.x << " ";
+                outFile << ray.origin.y << " ";
+                outFile << ray.origin.z << " ";
+                outFile << ray.direction.x << " ";
+                outFile << ray.direction.y << " ";
+                outFile << ray.direction.z << " ";
+            }
+        }
+    }
+
+
+    void saveTriangles(const Mesh& m)
+    {
+        std::fstream outFile("triangle_input.in", std::fstream::out);
+        for(int i = 0, base = 0; i < m.triangles.size(); i++, base += 9)
+        {
+            outFile << i << " ";
+            outFile << m.triangles[i]->p1.x << " ";
+            outFile << m.triangles[i]->p1.y << " ";
+            outFile << m.triangles[i]->p1.z << " ";
+            outFile << m.triangles[i]->p2.x << " ";
+            outFile << m.triangles[i]->p2.y << " ";
+            outFile << m.triangles[i]->p2.z << " ";
+            outFile << m.triangles[i]->p3.x << " ";
+            outFile << m.triangles[i]->p3.y << " ";
+            outFile << m.triangles[i]->p3.z << "\n";
+        }
+    }
+
 
 public:     
     Tracer(Application::Session& sess) :
@@ -74,6 +128,9 @@ public:
                 << m_session.camera->getVerticalResolution() 
                 << std::endl;
 
+            //saveTriangles(m_session.meshes[0]);
+            //saveRays(*(m_session.camera));
+            //std::fstream outFile("intersections.out", std::fstream::out);
             int r, c;
             for(r = 0; r < m_session.camera->getVerticalResolution(); r++)
             for(c = 0; c < m_session.camera->getHorizontalResolution(); c++)
@@ -100,7 +157,9 @@ public:
     
                     }
                 }
-    
+                
+                //outFile << idMin << " " << tMin << "\n";
+
                 if(idMin != -1)
                 {
     
@@ -174,6 +233,7 @@ public:
             addr_rays = addr_ids + (sizeof(int) * FPGA_MAX_TRIS);
             addr_outInter = addr_rays + (sizeof(double) * FPGA_MAX_RAYS * FPGA_RAY_ATTR_NUMBER);
             addr_outIds = addr_outInter + (sizeof(double) * FPGA_MAX_RAYS);
+
         }
 
     Chrono m_chronometer;
@@ -196,6 +256,13 @@ public:
                 << ": " << ADMXRC3_GetStatusString(status, TRUE) << "\n";
             exit(EXIT_FAILURE);
         }
+
+        //auto fpgaInfo = ADMXRC3_GetFPGAInfo;
+        //std::cout << "[info] : Opening FPGA: " 
+        //        << std::string(fpgaInfo.Identifier) << ":\n"
+        //        << "\tDevice Code: " << fpgaInfo.DeviceCode << "\n"
+        //        << "\tFamily Code: " << fpgaInfo.FamilyInfo << "\n"
+        //        << "\n";
 
 
         for(int i = 0; i < 3; i++)
@@ -242,6 +309,7 @@ public:
 
     void _updateStatusFPGA()
     {
+        
         this->readFPGA(
             XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL,
             sizeof(uint64_t),
@@ -344,29 +412,23 @@ public:
     uint64_t addr_outInter;
     uint64_t addr_outIds;
 
-    
-
-    void offloadGeometry(const Mesh& mesh)
+    std::vector<int> offloadGeometry(const Mesh& mesh)
     {
         int nTris = mesh.triangles.size();
 
         double* tData = new double[nTris * FPGA_TRI_ATTR_NUMBER];
-        int* idData = new int[nTris];
+        std::vector<int> idData(nTris);
         
-        prepareTriangles(tData, idData, mesh);
+        prepareTriangles(tData, static_cast<int*>(&(idData[0])), mesh);
 
         /// Writing tData
         m_chronometer.start();
         this->writeDMA(tData, nTris * FPGA_TRI_ATTR_NUMBER * sizeof(double), addr_tris);
         m_chronometer.stop("Write triangles to DMA");
-        
-        /// Writing idData
-        m_chronometer.start();
-        this->writeDMA(idData, nTris * sizeof(int), addr_ids);
-        m_chronometer.stop("Write triangles IDs to DMA");
+
 
         delete[] tData;
-        delete[] idData;
+        return idData;
     }
 
     virtual void render(int frame) {
@@ -383,9 +445,9 @@ public:
         int nRays = vres * hres, 
             nTris = m_session.meshes[0].triangles.size();
 
-
-        this->offloadGeometry(m_session.meshes[0]);
-
+        // std::vector containing the global identifier of the
+        // triangles sent to the accelerator
+        auto triangleIdMap = this->offloadGeometry(m_session.meshes[0]);
 
         uint64_t NUM_RAYS = nRays;
         uint64_t RAY_SIZE = 6;
@@ -402,16 +464,17 @@ public:
         /// preparing data structures to send to the FPGA
         prepareRays(rData, *m_session.camera);
         
-
-        /// Getting the status of the Accelerator by reading the CTRL address
-        this->_updateStatusFPGA();
-        std::cout << "[info] : FPGA status = "<<  m_fpgaStatus << "\n";
-
         /// Writing the new command (idle)
+        m_fpgaStatus = 4;
         this->writeFPGA(
             XINTERSECTFPGA_CONTROL_ADDR_AP_CTRL, 
             sizeof(uint64_t), 
             &m_fpgaStatus);
+
+        /// Getting the status of the Accelerator by reading the CTRL address
+        //this->_updateStatusFPGA();
+        std::cout << "[info] : FPGA status = "<<  m_fpgaStatus << "\n";
+
 
         /// Writing to the input addresses
         /// Number of Triangles
@@ -419,12 +482,6 @@ public:
             XINTERSECTFPGA_CONTROL_ADDR_I_TNUMBER_DATA,
             sizeof(uint64_t), 
             &nTris);
-
-        /// idData base address
-        this->writeFPGA(
-            XINTERSECTFPGA_CONTROL_ADDR_I_TIDS_DATA, 
-            sizeof(uint64_t), 
-            &addr_ids);
 
         /// tData base address
         this->writeFPGA(
@@ -510,13 +567,15 @@ public:
             int rayId = r * hres + c;
             /// Identifier of the triangle hit by the current ray
             int hitId = outIds[rayId];
+            bool hit = (hitId != -1);
 
             Intersection it;
 
             Ray ray = m_session.camera->getRay(r, c);
+            
+            if (hit) {
+                hitId = triangleIdMap[hitId];
 
-            if(hitId != -1)
-            {
                 Vec3d wo =
                     Vec3d(
                         rData[rayId * Ray::NUM_ATTRIBUTES + 3],
